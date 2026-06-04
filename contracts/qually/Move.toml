@@ -1,0 +1,9 @@
+[package]
+name = "qually"
+edition = "2024"
+
+[dependencies]
+# Dependencies on Sui and MoveStdlib are automatically added for edition = "2024"
+
+[addresses]
+qually = "0x0"

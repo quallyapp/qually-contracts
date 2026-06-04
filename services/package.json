@@ -1,0 +1,40 @@
+{
+  "name": "qually-backend",
+  "version": "1.0.0",
+  "description": "Qually backend services - Tatum webhooks, Walrus storage, notifications",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest",
+    "test:e2e": "node scripts/e2e-test.js",
+    "setup:tatum": "node scripts/setup-tatum.js",
+    "setup:walrus": "node scripts/setup-walrus.js",
+    "setup:webhook": "node scripts/setup-webhook.js"
+  },
+  "keywords": [
+    "sui",
+    "bounty",
+    "tatum",
+    "walrus"
+  ],
+  "author": "Qually",
+  "license": "MIT",
+  "dependencies": {
+    "@mysten/bcs": "^0.2.0",
+    "@mysten/sui": "^2.17.0",
+    "@mysten/sui.js": "^0.54.1",
+    "@mysten/walrus": "^1.1.7",
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "winston": "^3.14.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0"
+  }
+}
