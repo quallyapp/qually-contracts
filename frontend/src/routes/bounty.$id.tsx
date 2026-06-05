@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, createFileRoute, useParams } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { Link, createFileRoute, useParams, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Info, Cloud, Link as LinkIcon, BadgeCheck, Lock, Send, Share2, Copy, ShieldCheck } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -27,17 +27,19 @@ function formatPrizePool(prizePool: number): string {
   return `${prizePool.toLocaleString()} SUI`;
 }
 
-function getTimeRemaining(deadline: Date): { days: string; hours: string; minutes: string } {
+function getTimeRemaining(deadline: Date): { days: string; hours: string; minutes: string; seconds: string } {
   const now = Date.now();
   const diff = deadline.getTime() - now;
-  if (diff <= 0) return { days: "00", hours: "00", minutes: "00" };
+  if (diff <= 0) return { days: "00", hours: "00", minutes: "00", seconds: "00" };
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
   return {
     days: String(days).padStart(2, "0"),
     hours: String(hours).padStart(2, "0"),
     minutes: String(minutes).padStart(2, "0"),
+    seconds: String(seconds).padStart(2, "0"),
   };
 }
 
@@ -125,15 +127,29 @@ function NotFound() {
 
 function BountyDetail() {
   const { id } = useParams({ from: "/bounty/$id" });
+  const matchRoute = useMatchRoute();
+  const isChildRoute = matchRoute({ to: "/bounty/$id/submit", fuzzy: true });
   const { data: bounty, isLoading } = useOnChainBounty(id);
   const [activeTab, setActiveTab] = useState<"brief" | "submissions" | "timeline">("brief");
   const [copied, setCopied] = useState(false);
   const { address } = useWallet();
+  const [time, setTime] = useState({ days: "00", hours: "00", minutes: "00", seconds: "00" });
+
+  useEffect(() => {
+    if (!bounty) return;
+    setTime(getTimeRemaining(bounty.submissionDeadline));
+    const interval = setInterval(() => {
+      setTime(getTimeRemaining(bounty.submissionDeadline));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [bounty?.submissionDeadline]);
+
+  if (isChildRoute) {
+    return <Outlet />;
+  }
 
   if (isLoading) return <SkeletonLoader />;
   if (!bounty) return <NotFound />;
-
-  const time = getTimeRemaining(bounty.submissionDeadline);
 
   function handleCopy() {
     navigator.clipboard.writeText(window.location.href);
@@ -175,11 +191,11 @@ function BountyDetail() {
             </div>
             <div className="border-t border-border pt-3 flex items-center justify-between">
               <span className="text-sm text-on-surface-variant">Time Remaining</span>
-              {time.days === "00" && time.hours === "00" && time.minutes === "00" ? (
+              {time.days === "00" && time.hours === "00" && time.minutes === "00" && time.seconds === "00" ? (
                 <span className="text-sm font-mono font-bold text-destructive">EXPIRED</span>
               ) : (
                 <div className="flex gap-2">
-                  {[[time.days, "DAYS"], [time.hours, "HRS"], [time.minutes, "MIN"]].map(([n, l], i, a) => (
+                  {[[time.days, "DAYS"], [time.hours, "HRS"], [time.minutes, "MIN"], [time.seconds, "SEC"]].map(([n, l], i, a) => (
                     <div key={l} className="flex items-center gap-2">
                       <div className="text-center">
                         <div className="font-mono font-bold text-lg">{n}</div>
@@ -283,12 +299,13 @@ function BountyDetail() {
 
         {/* Right column */}
         <aside className="space-y-4">
-          <a
-            href={`/bounty/${bounty.id}/submit`}
+          <Link
+            to="/bounty/$id/submit"
+            params={{ id }}
             className="w-full h-12 rounded-md bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:opacity-90"
           >
             <Send className="size-4" /> Submit Work
-          </a>
+          </Link>
 
           <div className="rounded-lg border border-border bg-card p-5">
             <h3 className="font-semibold mb-4">Technical Metadata</h3>

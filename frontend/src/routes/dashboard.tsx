@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Wallet, Bell, Search, Scale, FileText, ArrowRight } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { useOnChainBounties } from "@/hooks/useOnChainBounties";
+import { useOnChainBounties, useMySubmissions } from "@/hooks/useOnChainBounties";
 import { useWallet } from "@/hooks/useWallet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -39,11 +39,19 @@ function statusColor(status: string) {
 function DashboardPage() {
   const { connected, address } = useWallet();
   const { data: allBounties, isLoading } = useOnChainBounties();
+  const { data: mySubmissionData, isLoading: isLoadingSubmissions } = useMySubmissions(address);
   const [activeTab, setActiveTab] = useState("bounties");
 
   const myBounties = useMemo(() => {
     if (!allBounties || !address) return [];
     return allBounties.filter((b) => b.posterAddress === address);
+  }, [allBounties, address]);
+
+  const mySubmissions = useMemo(() => {
+    if (!allBounties || !address) return [];
+    return allBounties.filter((b) =>
+      b.submittedAddresses?.map((a: string) => a.toLowerCase()).includes(address.toLowerCase())
+    );
   }, [allBounties, address]);
 
   const notifications = useMemo(() => {
@@ -176,19 +184,62 @@ function DashboardPage() {
 
           {/* My Submissions */}
           <TabsContent value="submissions">
-            <div className="rounded-lg border border-border bg-card p-16 text-center">
-              <Search className="size-10 mx-auto text-on-surface-variant mb-4" />
-              <h3 className="text-headline-sm mb-2">Your submissions will appear here</h3>
-              <p className="text-on-surface-variant max-w-md mx-auto mb-6">
-                Once you submit work to a bounty, your submissions will be tracked here.
-              </p>
-              <Link
-                to="/explore"
-                className="inline-flex items-center justify-center h-10 px-5 rounded-md border border-border bg-surface-low text-sm font-semibold hover:border-primary/40 transition"
-              >
-                Explore Bounties <ArrowRight className="size-3 ml-1" />
-              </Link>
-            </div>
+            {isLoadingSubmissions ? (
+              <div className="rounded-lg border border-border bg-card p-8 text-center text-on-surface-variant">
+                Loading your submissions...
+              </div>
+            ) : !mySubmissionData || mySubmissionData.length === 0 ? (
+              <div className="rounded-lg border border-border bg-card p-16 text-center">
+                <Search className="size-10 mx-auto text-on-surface-variant mb-4" />
+                <h3 className="text-headline-sm mb-2">No submissions yet</h3>
+                <p className="text-on-surface-variant max-w-md mx-auto mb-6">
+                  Once you submit work to a bounty, your submissions will appear here.
+                </p>
+                <Link
+                  to="/explore"
+                  className="inline-flex items-center justify-center h-10 px-5 rounded-md border border-border bg-surface-low text-sm font-semibold hover:border-primary/40 transition"
+                >
+                  Explore Bounties <ArrowRight className="size-3 ml-1" />
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {mySubmissionData.map((sub) => (
+                  <Link
+                    key={sub.id}
+                    to="/submission/$bountyId"
+                    params={{ bountyId: sub.bountyId }}
+                    className="block rounded-lg border border-border bg-card p-5 hover:border-primary/40 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                          SUBMITTED
+                        </Badge>
+                        <span className="text-label-mono text-on-surface-variant">#{sub.bountyId.slice(0, 8)}</span>
+                      </div>
+                      <span className="text-label-mono text-on-surface-variant text-xs">
+                        {sub.submittedAt.toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-lg">{sub.title}</h3>
+                    {sub.description && (
+                      <p className="text-sm text-on-surface-variant mt-1 line-clamp-2">
+                        {sub.description}
+                      </p>
+                    )}
+                    <div className="border-t border-border mt-4 pt-3 flex items-center justify-between">
+                      <span className="text-label-mono text-on-surface-variant text-xs">
+                        Blob: {sub.blobId.slice(0, 16)}...
+                      </span>
+                      <span className="text-sm font-semibold text-primary inline-flex items-center gap-1">
+                        View Bounty <ArrowRight className="size-3" />
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Judging Queue */}

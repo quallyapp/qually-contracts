@@ -1743,6 +1743,105 @@
         "Deploy to Mainnet with deploy-to-mainnet skill"
       ],
       "notes": "Session 025 complete. Fixed all SSR/runtime/type errors in new TanStack Start frontend. Key insight: dapp-kit hooks (useSuiClient, useConnectWallet) require context providers which aren't available during SSR - solved by using raw RPC for read operations and mounted guards for write operations. TypeScript compiles clean (0 errors). All 9 routes return 200. Next: user testing and feature verification."
+    },
+    {
+      "session_id": "session_026",
+      "timestamp": "2026-06-05T18:00:00Z",
+      "ai_agent": "OpenCode (mimo-v2-5-free)",
+      "current_phase": "Phase 8: Submit Work + Dashboard Integration",
+      "progress": {
+        "completed": [
+          "Fixed bounty detail 'Submit Work' button - was plain <a> tag causing full page reload that destroyed wallet connection, changed to TanStack <Link>",
+          "Fixed TanStack Router child route rendering - bounty.$id.submit.tsx was nested child but BountyDetail had no <Outlet>, added useMatchRoute + conditional Outlet",
+          "Fixed React Rules of Hooks - moved all hooks before early returns in BountyDetail",
+          "Fixed dapp-kit signAndExecute - switched from signTransaction+executeTransactionBlock (2-step) to signAndExecute (1-step) for gas coin selection, then back to signTransaction with Transaction object (not built bytes) because signAndExecute hangs on RPC execution",
+          "Fixed executeTx result parsing - signAndExecute returns {digest, rawEffects} not {effects.status}, switched back to signTransaction + suiClient.executeTransactionBlock with 30s timeout",
+          "Fixed 'No valid gas coins' - dapp-kit signTransaction expects Transaction object (calls .toJSON() internally which triggers build with gas selection)",
+          "Bounty creation now works end-to-end: Walrus upload → signTransaction → executeTransactionBlock → success",
+          "Work submission now works end-to-end: Walrus upload → signTransaction → executeTransactionBlock → success",
+          "Dashboard 'My Submissions' tab now fetches and displays user's submissions with previews (title, description from Walrus, date, blob ID)",
+          "Created submission detail page at /submission/$bountyId - shows bounty context, full submission content from Walrus, technical metadata with copy buttons",
+          "Added localStorage caching for submissions - saved on submit, read by dashboard and detail page"
+        ],
+        "in_progress": [],
+        "blocked": []
+      },
+      "file_module_map": [
+        {
+          "file": "frontend/src/routes/bounty.$id.tsx",
+          "purpose": "Fixed Submit Work button from <a> to <Link>, added Outlet for child routes, fixed hooks order",
+          "last_modified": "2026-06-05T18:00:00Z"
+        },
+        {
+          "file": "frontend/src/hooks/useContract.ts",
+          "purpose": "executeTx uses signTransaction (Transaction object) + suiClient.executeTransactionBlock with 30s timeout",
+          "last_modified": "2026-06-05T18:00:00Z"
+        },
+        {
+          "file": "frontend/src/components/Providers.tsx",
+          "purpose": "Added signAndExecute + signTransaction to DappKitState and DappKitBridge",
+          "last_modified": "2026-06-05T18:00:00Z"
+        },
+        {
+          "file": "frontend/src/routes/dashboard.tsx",
+          "purpose": "My Submissions tab now shows submissions with previews from localStorage + useMySubmissions hook",
+          "last_modified": "2026-06-05T18:00:00Z"
+        },
+        {
+          "file": "frontend/src/routes/submission.$bountyId.tsx",
+          "purpose": "New route - submission detail page with bounty context, Walrus content, technical metadata",
+          "last_modified": "2026-06-05T18:00:00Z"
+        },
+        {
+          "file": "frontend/src/hooks/useOnChainBounties.ts",
+          "purpose": "Added useMySubmissions hook (localStorage-based), parseBountyObject now includes submittedAddresses",
+          "last_modified": "2026-06-05T18:00:00Z"
+        },
+        {
+          "file": "frontend/src/types.ts",
+          "purpose": "Added submittedAddresses field to Bounty type",
+          "last_modified": "2026-06-05T18:00:00Z"
+        },
+        {
+          "file": "frontend/src/routes/bounty.$id.submit.tsx",
+          "purpose": "Added localStorage caching for submissions on success, 20s Walrus upload timeout",
+          "last_modified": "2026-06-05T18:00:00Z"
+        }
+      ],
+      "decisions_log": [
+        {
+          "decision": "use signTransaction (Transaction object) + executeTransactionBlock instead of signAndExecute",
+          "reason": "signAndExecute hangs after wallet signs (RPC execution step stalls). signTransaction with raw Transaction object lets dapp-kit handle build+gas internally via .toJSON(), then we execute separately with timeout",
+          "alternatives_considered": "signAndExecute (hangs), signTransaction with pre-built bytes (toJSON not a function)"
+        },
+        {
+          "decision": "Use localStorage for submission caching instead of RPC sui_queryObjects",
+          "reason": "sui_queryObjects with StructType filter returns 0 results on testnet RPC for Move structs",
+          "alternatives_considered": "sui_queryObjects (doesn't work), event-based discovery (no events emitted)"
+        }
+      ],
+      "known_issues": [
+        "Walrus testnet domain walrus.space expired — need mainnet publisher or alternative storage",
+        "Corporate firewall blocks Linode IPs — Walrus publishers unreachable from corporate network",
+        "sui client CLI times out to testnet (reqwest issue) — use axios for all RPC calls",
+        "sui_queryObjects with StructType filter returns 0 on testnet RPC — cannot query Submission objects on-chain",
+        "signAndExecute from dapp-kit hangs after wallet signs — must use signTransaction + executeTransactionBlock separately"
+      ],
+      "errors_encountered": [
+        "submit_work abort code 5: E_ALREADY_SUBMITTED - user already submitted to same bounty from earlier test attempts",
+        "signAndExecute hangs after wallet signs - RPC execution step stalls indefinitely",
+        "transaction.toJSON is not a function - signTransaction expects Transaction object, not pre-built Uint8Array bytes",
+        "No valid gas coins found - was from old signTransaction+executeTransactionBlock flow, fixed by passing Transaction object to signTransaction",
+        "React Rules of Hooks violation - useOnChainBounty and useEffect called after early return in BountyDetail"
+      ],
+      "next_steps": [
+        "Phase 9-13: Test judges, leaderboard, dashboard, profile, edge cases",
+        "Fix bounty discovery without localStorage — needs contract events (event::emit)",
+        "Deploy to Vercel — npm run build generates .vercel/output with nitro plugin",
+        "Security audit with cso skill before mainnet",
+        "Deploy to Mainnet with deploy-to-mainnet skill"
+      ],
+      "notes": "Session 026 complete. Full create bounty + submit work flow working end-to-end on testnet. Key dapp-kit insight: signTransaction expects raw Transaction object (not built bytes), dapp-kit calls .toJSON() internally which triggers build with gas coin selection. signAndExecute hangs on RPC execution. Dashboard shows submission previews from localStorage cache. New submission detail page at /submission/$bountyId shows full Walrus content."
     }
   ]
 }

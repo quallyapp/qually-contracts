@@ -14,4 +14,5 @@ export interface Bounty {
   description: string;
   splits: number[];
   createdAt: Date;
+  submittedAddresses: string[];
 }

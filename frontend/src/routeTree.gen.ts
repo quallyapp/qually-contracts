@@ -16,6 +16,7 @@ import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SubmissionBountyIdRouteImport } from './routes/submission.$bountyId'
 import { Route as ProfileAddressRouteImport } from './routes/profile.$address'
 import { Route as BountyIdRouteImport } from './routes/bounty.$id'
 import { Route as BountyIdSubmitRouteImport } from './routes/bounty.$id.submit'
@@ -55,6 +56,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubmissionBountyIdRoute = SubmissionBountyIdRouteImport.update({
+  id: '/submission/$bountyId',
+  path: '/submission/$bountyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileAddressRoute = ProfileAddressRouteImport.update({
   id: '/profile/$address',
   path: '/profile/$address',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/post': typeof PostRoute
   '/bounty/$id': typeof BountyIdRouteWithChildren
   '/profile/$address': typeof ProfileAddressRoute
+  '/submission/$bountyId': typeof SubmissionBountyIdRoute
   '/bounty/$id/submit': typeof BountyIdSubmitRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/post': typeof PostRoute
   '/bounty/$id': typeof BountyIdRouteWithChildren
   '/profile/$address': typeof ProfileAddressRoute
+  '/submission/$bountyId': typeof SubmissionBountyIdRoute
   '/bounty/$id/submit': typeof BountyIdSubmitRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/post': typeof PostRoute
   '/bounty/$id': typeof BountyIdRouteWithChildren
   '/profile/$address': typeof ProfileAddressRoute
+  '/submission/$bountyId': typeof SubmissionBountyIdRoute
   '/bounty/$id/submit': typeof BountyIdSubmitRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/bounty/$id'
     | '/profile/$address'
+    | '/submission/$bountyId'
     | '/bounty/$id/submit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/bounty/$id'
     | '/profile/$address'
+    | '/submission/$bountyId'
     | '/bounty/$id/submit'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/bounty/$id'
     | '/profile/$address'
+    | '/submission/$bountyId'
     | '/bounty/$id/submit'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   PostRoute: typeof PostRoute
   BountyIdRoute: typeof BountyIdRouteWithChildren
   ProfileAddressRoute: typeof ProfileAddressRoute
+  SubmissionBountyIdRoute: typeof SubmissionBountyIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -210,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/submission/$bountyId': {
+      id: '/submission/$bountyId'
+      path: '/submission/$bountyId'
+      fullPath: '/submission/$bountyId'
+      preLoaderRoute: typeof SubmissionBountyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile/$address': {
       id: '/profile/$address'
       path: '/profile/$address'
@@ -256,6 +276,7 @@ const rootRouteChildren: RootRouteChildren = {
   PostRoute: PostRoute,
   BountyIdRoute: BountyIdRouteWithChildren,
   ProfileAddressRoute: ProfileAddressRoute,
+  SubmissionBountyIdRoute: SubmissionBountyIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

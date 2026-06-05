@@ -34,19 +34,25 @@ export function useContract() {
     try {
       tx.setSender(account.address);
       const signed = await signTransaction({ transaction: tx, chain: 'sui:testnet' });
-      const result = await suiClient.executeTransactionBlock({
-        transactionBlock: signed.bytes,
-        signature: signed.signature,
-        options: { showEffects: true, showEvents: true },
-      });
+      const result: any = await Promise.race([
+        suiClient.executeTransactionBlock({
+          transactionBlock: signed.bytes,
+          signature: signed.signature,
+          options: { showEffects: true, showEvents: true },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('RPC timed out after 30s')), 30000)
+        ),
+      ]);
       setPending(false);
       if (result.effects?.status?.status === 'success') {
         const created = (result.effects?.created ?? []).map((c: any) => c.reference?.objectId).filter(Boolean);
         return { success: true, digest: result.digest, createdObjects: created };
       }
-      return { success: false, error: result.effects?.status?.error };
+      return { success: false, error: result.effects?.status?.error ?? 'Transaction aborted' };
     } catch (e: any) {
       setPending(false);
+      console.error("[Qually] executeTx exception:", e);
       return { success: false, error: e.message };
     }
   }, [account, signTransaction, suiClient]);

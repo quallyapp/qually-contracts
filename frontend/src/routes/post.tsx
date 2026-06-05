@@ -64,6 +64,33 @@ function PostDashboard() {
     return `${days || 1} Days`;
   }, [myBounties]);
 
+  const reputation = useMemo(() => {
+    const bountyCount = myBounties.length;
+    const closedCount = myBounties.filter((b) => b.status === "closed").length;
+    const totalSubmissions = myBounties.reduce((sum, b) => sum + b.submissionCount, 0);
+    const withDescription = myBounties.filter((b) => b.description && b.description.length > 10).length;
+
+    // Score: based on bounties posted + submissions received + escrowed amount
+    const baseScore = Math.min(bountyCount * 12, 48);
+    const submissionBonus = Math.min(totalSubmissions * 5, 30);
+    const escrowBonus = Math.min(Math.floor(totalEscrowed) * 4, 22);
+    const score = Math.min(baseScore + submissionBonus + escrowBonus, 100);
+
+    // Tier
+    let tier = "NEWCOMER";
+    if (score >= 90) tier = "ELITE ARCHITECT";
+    else if (score >= 70) tier = "VETERAN";
+    else if (score >= 40) tier = "ACTIVE CONTRIBUTOR";
+
+    // Payment score: 100% if no disputes, based on closed bounties
+    const paymentScore = closedCount > 0 ? "10.0" : "—";
+
+    // Clarity rate: % of bounties with descriptions
+    const clarityRate = bountyCount > 0 ? Math.round((withDescription / bountyCount) * 100) : 0;
+
+    return { score, tier, paymentScore, clarityRate };
+  }, [myBounties, totalEscrowed]);
+
   const notifications = useMemo(() => {
     const items: { icon: React.ReactNode; text: string; meta: string }[] = [];
     for (const b of activeBounties) {
@@ -171,16 +198,16 @@ function PostDashboard() {
             <div className="rounded-lg border border-border bg-card p-5 border-t-2 border-t-primary">
               <h3 className="font-semibold mb-4">Poster Reputation</h3>
               <div className="flex items-center gap-4">
-                <div className="relative size-20 rounded-full grid place-items-center" style={{ background: "conic-gradient(var(--primary) 0 92%, var(--surface-container) 92% 100%)" }}>
-                  <div className="size-16 rounded-full bg-card grid place-items-center font-mono font-bold text-lg">92</div>
+                <div className="relative size-20 rounded-full grid place-items-center" style={{ background: `conic-gradient(var(--primary) 0 ${reputation.score}%, var(--surface-container) ${reputation.score}% 100%)` }}>
+                  <div className="size-16 rounded-full bg-card grid place-items-center font-mono font-bold text-lg">{reputation.score}</div>
                 </div>
                 <div>
-                  <p className="text-label-caps text-primary">TIER: ELITE ARCHITECT</p>
-                  <p className="text-sm text-on-surface-variant mt-1">Top 0.5% of Active Posters</p>
+                  <p className="text-label-caps text-primary">TIER: {reputation.tier}</p>
+                  <p className="text-sm text-on-surface-variant mt-1">{myBounties.length} bounties posted</p>
                 </div>
               </div>
               <div className="mt-5 space-y-3 text-sm">
-                {[["Prompt Payment Score", "9.8/10", 98], ["Review Clarity Rate", "94%", 94]].map(([k, v, p]) => (
+                {[["Prompt Payment Score", reputation.paymentScore === "—" ? "—" : `${reputation.paymentScore}/10`, reputation.paymentScore === "—" ? 0 : 100], ["Description Coverage", `${reputation.clarityRate}%`, reputation.clarityRate]].map(([k, v, p]) => (
                   <div key={k as string}>
                     <div className="flex justify-between mb-1">
                       <span className="text-on-surface-variant">{k}</span>

@@ -50,6 +50,17 @@ export function PosterActions({ bounty }: PosterActionsProps) {
         )}
 
         {/* Start Review */}
+        {bounty.status === 'open' && Date.now() < bounty.submissionDeadline.getTime() && (
+          <div className="p-2 rounded border border-border bg-surface-low">
+            <p className="text-sm font-medium flex items-center gap-1">
+              <Clock className="size-4" />
+              Start Review
+            </p>
+            <p className="text-xs text-on-surface-variant mt-1">
+              Available after submission deadline ({bounty.submissionDeadline.toLocaleDateString()})
+            </p>
+          </div>
+        )}
         {bounty.status === 'open' && Date.now() >= bounty.submissionDeadline.getTime() && (
           <div className="flex items-center justify-between gap-2 p-2 rounded border border-border bg-surface-low">
             <div>
@@ -93,7 +104,7 @@ export function PosterActions({ bounty }: PosterActionsProps) {
           <div className="flex items-center justify-between gap-2 p-2 rounded border border-border bg-surface-low">
             <div>
               <p className="text-sm font-medium">Veto Result</p>
-              <p className="text-xs text-on-surface-variant">Within 48h window</p>
+              <p className="text-xs text-on-surface-variant">Dispute the judging outcome within 48h of finalization</p>
             </div>
             <Button
               size="sm"

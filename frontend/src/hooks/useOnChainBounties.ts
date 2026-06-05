@@ -86,6 +86,7 @@ async function parseBountyObject(obj: any): Promise<Bounty | null> {
       description: brief.description || '',
       splits: fields.contest_splits?.map((s: any) => Number(s)) || [100],
       createdAt: new Date(),
+      submittedAddresses: fields.submitted_addresses ?? [],
     };
   } catch {
     return null;
@@ -158,6 +159,7 @@ export function useOnChainBounties() {
       }
     },
     refetchInterval: 30000,
+    staleTime: 0,
   });
 }
 
@@ -177,5 +179,41 @@ export function useOnChainBounty(id: string | null) {
       }
     },
     enabled: !!id,
+  });
+}
+
+export interface SubmissionPreview {
+  id: string;
+  bountyId: string;
+  title: string;
+  description: string;
+  submittedAt: Date;
+  blobId: string;
+}
+
+export function useMySubmissions(address: string | null) {
+  return useQuery({
+    queryKey: ['mySubmissions', address],
+    queryFn: async (): Promise<SubmissionPreview[]> => {
+      if (!address) return [];
+
+      // Read from localStorage (primary source — RPC queryObjects doesn't work on testnet)
+      const cached: any[] = JSON.parse(localStorage.getItem('qually_submissions') || '[]');
+      return cached
+        .filter((s: any) => s.bountyId && s.blobId)
+        .map((s: any) => ({
+          id: s.id,
+          bountyId: s.bountyId,
+          title: s.title || 'Submission',
+          description: s.description || '',
+          submittedAt: new Date(s.submittedAt),
+          blobId: s.blobId,
+        }))
+        .sort((a: SubmissionPreview, b: SubmissionPreview) =>
+          b.submittedAt.getTime() - a.submittedAt.getTime()
+        );
+    },
+    enabled: !!address,
+    staleTime: 15000,
   });
 }

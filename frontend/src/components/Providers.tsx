@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
-import { WalletProvider, SuiClientProvider, useCurrentAccount, useConnectWallet, useDisconnectWallet, useWallets, useSuiClient, useSignTransaction } from "@mysten/dapp-kit";
+import { WalletProvider, SuiClientProvider, useCurrentAccount, useConnectWallet, useDisconnectWallet, useWallets, useSuiClient, useSignTransaction, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Toaster } from "@/components/ui/sonner";
 import { WalletContext, type WalletState } from "@/hooks/useWallet";
 
@@ -10,6 +10,7 @@ interface DappKitState {
   account: ReturnType<typeof useCurrentAccount>;
   suiClient: ReturnType<typeof useSuiClient>;
   signTransaction: ReturnType<typeof useSignTransaction>["mutateAsync"];
+  signAndExecute: ReturnType<typeof useSignAndExecuteTransaction>["mutateAsync"];
 }
 
 const DappKitContext = createContext<DappKitState | null>(null);
@@ -23,6 +24,7 @@ export function useDappKit(): DappKitState {
       account: null,
       suiClient: null as any,
       signTransaction: async () => { throw new Error("Wallet not connected (SSR)"); },
+      signAndExecute: async () => { throw new Error("Wallet not connected (SSR)"); },
     };
   }
   return ctx;
@@ -36,8 +38,9 @@ function DappKitBridge({ children }: { children: ReactNode }) {
   const account = useCurrentAccount();
   const suiClient = useSuiClient();
   const { mutateAsync: signTransaction } = useSignTransaction();
+  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
-  const value: DappKitState = { account, suiClient, signTransaction };
+  const value: DappKitState = { account, suiClient, signTransaction, signAndExecute };
 
   return (
     <DappKitContext.Provider value={value}>
