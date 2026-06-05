@@ -30,8 +30,7 @@ const BOUNTY_TYPE_MAP: Record<number, Bounty['type']> = {
 };
 
 function blobIdBytesToString(bytes: number[]): string {
-  const chars = bytes.map((b) => String.fromCharCode(b));
-  return chars.join('');
+  return new TextDecoder().decode(new Uint8Array(bytes));
 }
 
 async function fetchBriefFromWalrus(blobIdBytes: number[]): Promise<{ title: string; description: string; category?: string }> {
@@ -40,7 +39,7 @@ async function fetchBriefFromWalrus(blobIdBytes: number[]): Promise<{ title: str
     if (!blobId || blobId.trim().length === 0) {
       return { title: '', description: '' };
     }
-    const resp = await fetch(`${WALRUS_AGGREGATOR}/v1/${blobId}`, {
+    const resp = await fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${encodeURIComponent(blobId)}`, {
       signal: AbortSignal.timeout(10000),
     });
     if (!resp.ok) return { title: '', description: '' };

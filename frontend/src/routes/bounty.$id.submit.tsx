@@ -179,7 +179,7 @@ function BountySubmit() {
         splitValues = collabs.map((c) => c.split);
       }
 
-      const blobIdNums = Array.from(Buffer.from(descResult.blobId, "utf-8")).map((b) => b);
+      const blobIdNums = Array.from(new TextEncoder().encode(descResult.blobId));
       const result = await submitWork(
         id,
         collabAddresses,

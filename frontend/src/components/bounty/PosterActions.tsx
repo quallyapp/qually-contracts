@@ -50,7 +50,7 @@ export function PosterActions({ bounty }: PosterActionsProps) {
         )}
 
         {/* Start Review */}
-        {bounty.status === 'open' && (
+        {bounty.status === 'open' && Date.now() >= bounty.submissionDeadline.getTime() && (
           <div className="flex items-center justify-between gap-2 p-2 rounded border border-border bg-surface-low">
             <div>
               <p className="text-sm font-medium">Start Review</p>

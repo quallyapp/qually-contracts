@@ -64,6 +64,7 @@ function CreateBountyPage() {
     setStep("uploading");
     let briefResult;
     try {
+      console.log("[Qually] Uploading brief to Walrus...");
       briefResult = await uploadJson({
         title: form.title,
         description: form.description,
@@ -71,15 +72,18 @@ function CreateBountyPage() {
         requirements: form.description,
         createdAt: new Date().toISOString(),
       });
+      console.log("[Qually] Walrus upload success:", briefResult.blobId.slice(0, 16) + "...");
     } catch (err: any) {
+      console.error("[Qually] Walrus upload failed:", err.message);
       setError(`Walrus upload failed: ${err.message}. Please try again — your bounty needs Walrus storage for the title and description.`);
       setStep("form");
       return;
     }
 
+    const blobIdBytes = Array.from(new TextEncoder().encode(briefResult.blobId));
     const params: CreateBountyParams = {
       bounty_type: parseInt(form.bountyType) as 0 | 1 | 2,
-      brief_blob_id: briefResult.blobHash,
+      brief_blob_id: blobIdBytes,
       brief_content_hash: briefResult.blobHash,
       submission_deadline: now + submissionMs,
       judging_deadline: now + submissionMs + judgingMs,

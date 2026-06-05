@@ -22,7 +22,7 @@ async function testPublisher(url: string): Promise<boolean> {
     const resp = await fetch(`${url}/v1/blobs?epochs=1`, {
       method: 'PUT',
       body: new Uint8Array([0]),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(8000),
     });
     return resp.ok || resp.status === 400;
   } catch {
@@ -59,6 +59,7 @@ export async function uploadToWalrus(data: Blob | ArrayBuffer | Uint8Array): Pro
     method: 'PUT',
     body: bytes,
     headers: { 'Content-Type': 'application/octet-stream' },
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!resp.ok) {
@@ -71,7 +72,7 @@ export async function uploadToWalrus(data: Blob | ArrayBuffer | Uint8Array): Pro
   if (!blobInfo?.blobId) throw new Error('Invalid Walrus response');
 
   const hash = await sha3_256(bytes);
-  const hashBytes = Array.from(new Uint8Array(Buffer.from(hash, 'hex')));
+  const hashBytes = Array.from(new Uint8Array(hash.match(/.{2}/g)!.map(h => parseInt(h, 16))));
 
   return {
     blobId: blobInfo.blobId,
@@ -89,7 +90,7 @@ export async function uploadText(text: string): Promise<WalrusUploadResult> {
 }
 
 export async function readFromWalrus(blobId: string): Promise<Uint8Array> {
-  const resp = await fetch(`${activeAggregator}/v1/${blobId}`, {
+  const resp = await fetch(`${activeAggregator}/v1/blobs/${blobId}`, {
     signal: AbortSignal.timeout(30000),
   });
   if (!resp.ok) throw new Error(`Walrus read failed: ${resp.status}`);

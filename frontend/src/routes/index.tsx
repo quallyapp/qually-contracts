@@ -75,7 +75,7 @@ function Landing() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-md border border-border bg-surface-low p-3">
                       <p className="text-label-caps text-on-surface-variant">POOL SIZE</p>
-                      <p className="font-mono font-semibold mt-1">{Math.round(heroBounty.prizePool)} SUI</p>
+                      <p className="font-mono font-semibold mt-1">{heroBounty.prizePool.toFixed(1)} SUI</p>
                     </div>
                     <div className="rounded-md border border-border bg-surface-low p-3">
                       <p className="text-label-caps text-on-surface-variant">SUBMISSIONS</p>
@@ -180,7 +180,7 @@ function Landing() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <p className="font-mono font-bold text-primary">{Math.round(b.prizePool)} SUI</p>
+                      <p className="font-mono font-bold text-primary">{b.prizePool.toFixed(1)} SUI</p>
                       <Link to="/bounty/$id" params={{ id: b.id }} className="text-label-mono px-4 h-9 rounded-md border border-primary text-primary hover:bg-primary/10 inline-flex items-center">APPLY NOW</Link>
                     </div>
                   </div>
