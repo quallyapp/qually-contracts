@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Shield, Star, Award, ChevronRight, Loader2, CheckCircle2 } from "lucide-react";
+import { Shield, Star, Award, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useWallet } from "../hooks/useWallet";
 import { useContract } from "../hooks/useContract";
+import { uploadJudgeProfile, saveJudgeProfileLocal, getJudgeProfileLocal } from "../lib/judge-profiles";
+import { saveJudgeApplication, type JudgeApplication } from "../lib/judge-applications";
+import { useOnChainBounties } from "../hooks/useOnChainBounties";
 
 export const Route = createFileRoute("/judges")({
   head: () => ({
@@ -63,55 +66,140 @@ const TIERS = [
   },
 ];
 
-const SAMPLE_JUDGES = [
-  { name: "SuiArchitect", tier: "T2", skills: ["Move", "DeFi"], score: 87 },
-  { name: "CodeValidator", tier: "T1", skills: ["Frontend", "UI/UX"], score: 72 },
-  { name: "AuditPro", tier: "T3", skills: ["Security", "Move"], score: 94 },
-  { name: "BountyScout", tier: "T1", skills: ["Writing", "Research"], score: 68 },
-];
-
 function JudgesPage() {
-  const { connected } = useWallet();
+  const { connected, address } = useWallet();
   const { mintJudgeProfile, applyAsJudge, pending } = useContract();
+  const { data: bounties } = useOnChainBounties();
 
+  const [xAccount, setXAccount] = useState("");
+  const [github, setGithub] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [portfolio, setPortfolio] = useState("");
   const [motivation, setMotivation] = useState("");
   const [experience, setExperience] = useState("");
+
   const [profileMinted, setProfileMinted] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBounty, setSelectedBounty] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (address) {
+      const pid = localStorage.getItem(`qually_judge_profile_id_${address}`);
+      if (pid) {
+        setProfileMinted(true);
+        setProfileId(pid);
+      } else {
+        setProfileMinted(false);
+        setProfileId(null);
+      }
+    }
+  }, [address]);
+
+  useEffect(() => {
+    if (address) {
+      const existing = getJudgeProfileLocal(address);
+      if (existing) {
+        setXAccount(existing.details.x || "");
+        setGithub(existing.details.github || "");
+        setLinkedin(existing.details.linkedin || "");
+        setInstagram(existing.details.instagram || "");
+        setPortfolio(existing.details.portfolio || "");
+        setMotivation(existing.details.motivation || "");
+        setExperience(existing.details.experience || "");
+      }
+    }
+  }, [address]);
 
   async function handleMintProfile() {
     setError(null);
-    const result = await mintJudgeProfile();
-    if (result.success) {
-      setProfileMinted(true);
-      if (result.createdObjects && result.createdObjects.length > 0) {
-        setProfileId(result.createdObjects[0]);
+    setUploading(true);
+
+    try {
+      const details = {
+        address: address || "",
+        x: xAccount || undefined,
+        github: github || undefined,
+        linkedin: linkedin || undefined,
+        instagram: instagram || undefined,
+        portfolio: portfolio || undefined,
+        motivation: motivation || undefined,
+        experience: experience || undefined,
+        mintedAt: new Date().toISOString(),
+      };
+
+      let blobId = "";
+      try {
+        blobId = await uploadJudgeProfile(details);
+      } catch (walrusErr) {
+        console.warn("Walrus upload failed, minting without off-chain profile:", walrusErr);
       }
-    } else {
-      setError(result.error ?? "Failed to mint profile");
+
+      const result = await mintJudgeProfile();
+      if (result.success) {
+        setProfileMinted(true);
+        if (result.createdObjects && result.createdObjects.length > 0) {
+          const pid = result.createdObjects[0];
+          setProfileId(pid);
+          localStorage.setItem(`qually_judge_profile_id_${address}`, pid);
+          if (address && blobId) {
+            saveJudgeProfileLocal(address, blobId, details);
+          }
+        }
+      } else {
+        setError(result.error ?? "Failed to mint profile");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mint profile");
+    } finally {
+      setUploading(false);
     }
   }
 
   async function handleApply() {
     setError(null);
     if (!selectedBounty.trim()) {
-      setError("Please enter a bounty ID to apply for");
+      setError("Please select a bounty to apply for");
       return;
     }
     if (!profileId) {
       setError("Profile not found. Please mint your profile first.");
       return;
     }
-    const result = await applyAsJudge(profileId, selectedBounty, 1, []);
+
+    let applicationBlobId: number[] = [];
+    if (address) {
+      const local = getJudgeProfileLocal(address);
+      if (local?.blobId) {
+        applicationBlobId = Array.from(new TextEncoder().encode(local.blobId)).slice(0, 32);
+      }
+    }
+
+    const result = await applyAsJudge(profileId, selectedBounty, 100_000_000, applicationBlobId);
     if (result.success) {
       setApplied(true);
+      if (result.createdObjects && result.createdObjects.length > 0 && address) {
+        const app: JudgeApplication = {
+          applicationId: result.createdObjects[0],
+          bountyId: selectedBounty,
+          judgeAddress: address,
+          profileId,
+          stakeAmount: 0.1,
+          applicationBlobId: new TextDecoder().decode(new Uint8Array(applicationBlobId)),
+          state: "pending",
+          createdAt: new Date().toISOString(),
+        };
+        saveJudgeApplication(app);
+      }
     } else {
       setError(result.error ?? "Failed to apply");
     }
   }
+
+  const openBounties = (bounties || []).filter(b => b.status === "open");
 
   return (
     <div className="min-h-screen bg-background">
@@ -139,10 +227,7 @@ function JudgesPage() {
             {TIERS.map((tier) => {
               const Icon = tier.icon;
               return (
-                <div
-                  key={tier.level}
-                  className={`rounded-lg border ${tier.border} ${tier.bg} p-5`}
-                >
+                <div key={tier.level} className={`rounded-lg border ${tier.border} ${tier.bg} p-5`}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`size-9 rounded-md ${tier.bg} border ${tier.border} grid place-items-center ${tier.color}`}>
                       <Icon className="size-4" />
@@ -179,32 +264,10 @@ function JudgesPage() {
             <h2 className="text-headline-md mb-5">Active Judges</h2>
             {connected ? (
               <div className="space-y-3">
-                {SAMPLE_JUDGES.map((judge) => (
-                  <div key={judge.name} className="rounded-lg border border-border bg-card p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="size-10 rounded-md bg-primary/10 border border-primary/20 grid place-items-center text-primary font-mono font-bold text-sm">
-                        {judge.name.slice(0, 2)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{judge.name}</span>
-                          <Badge variant="outline" className="font-mono text-[10px]">{judge.tier}</Badge>
-                        </div>
-                        <div className="flex gap-2 mt-1">
-                          {judge.skills.map((s) => (
-                            <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant border border-border">
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-mono font-bold text-primary">{judge.score}</span>
-                      <span className="text-label-caps text-on-surface-variant block">SCORE</span>
-                    </div>
-                  </div>
-                ))}
+                <div className="rounded-lg border border-border bg-card p-8 text-center">
+                  <Shield className="size-10 text-on-surface-variant mx-auto mb-3" />
+                  <p className="text-on-surface-variant text-sm">Judge directory coming soon. Mint your profile to get started.</p>
+                </div>
               </div>
             ) : (
               <div className="rounded-lg border border-border bg-card p-8 text-center">
@@ -228,31 +291,52 @@ function JudgesPage() {
                   {!profileMinted ? (
                     <div className="space-y-4">
                       <p className="text-sm text-on-surface-variant">
-                        Mint your on-chain judge profile to get started. This creates your identity as a Qually judge.
+                        Share your details and mint your on-chain judge profile. Social links help bounty posters trust your evaluations.
                       </p>
-                      <Button onClick={handleMintProfile} disabled={pending} className="w-full">
-                        {pending ? (
-                          <><Loader2 className="size-4 animate-spin" /> Minting...</>
-                        ) : (
-                          "Mint Judge Profile"
-                        )}
-                      </Button>
-                    </div>
-                  ) : !applied ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm text-green-500">
-                        <CheckCircle2 className="size-4" />
-                        <span>Profile minted{profileId ? ` (${profileId.slice(0, 8)}...)` : ''}. Now apply to judge a bounty.</span>
+
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">X (Twitter)</label>
+                        <Input
+                          placeholder="@yourhandle"
+                          value={xAccount}
+                          onChange={(e) => setXAccount(e.target.value)}
+                        />
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium mb-1.5 block">Bounty ID to Judge</label>
+                        <label className="text-sm font-medium mb-1.5 block">GitHub</label>
                         <Input
-                          placeholder="Paste the bounty object ID"
-                          value={selectedBounty}
-                          onChange={(e) => setSelectedBounty(e.target.value)}
+                          placeholder="github.com/yourusername"
+                          value={github}
+                          onChange={(e) => setGithub(e.target.value)}
                         />
-                        <p className="text-xs text-on-surface-variant mt-1">Find bounty IDs on the Explore page</p>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">LinkedIn</label>
+                        <Input
+                          placeholder="linkedin.com/in/yourprofile"
+                          value={linkedin}
+                          onChange={(e) => setLinkedin(e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">Instagram</label>
+                        <Input
+                          placeholder="@yourhandle"
+                          value={instagram}
+                          onChange={(e) => setInstagram(e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">Portfolio Website</label>
+                        <Input
+                          placeholder="https://yoursite.com"
+                          value={portfolio}
+                          onChange={(e) => setPortfolio(e.target.value)}
+                        />
                       </div>
 
                       <div>
@@ -275,11 +359,55 @@ function JudgesPage() {
                         />
                       </div>
 
+                      <Button onClick={handleMintProfile} disabled={pending || uploading} className="w-full">
+                        {pending || uploading ? (
+                          <><Loader2 className="size-4 animate-spin" /> {uploading ? "Uploading to Walrus..." : "Minting..."} </>
+                        ) : (
+                          "Mint Judge Profile"
+                        )}
+                      </Button>
+                      <p className="text-xs text-on-surface-variant text-center">
+                        Your details are stored on Walrus decentralized storage and linked to your on-chain profile.
+                      </p>
+                    </div>
+                  ) : !applied ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm text-green-500">
+                        <CheckCircle2 className="size-4" />
+                        <span>Profile minted{profileId ? ` (${profileId.slice(0, 8)}...)` : ''}. Now apply to judge a bounty.</span>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">Select Bounty to Judge</label>
+                        {openBounties.length > 0 ? (
+                          <select
+                            value={selectedBounty}
+                            onChange={(e) => setSelectedBounty(e.target.value)}
+                            className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+                          >
+                            <option value="">Choose a bounty...</option>
+                            {openBounties.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.title || b.id.slice(0, 12) + "..."} — {b.prizePool.toLocaleString()} SUI
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div>
+                            <Input
+                              placeholder="No open bounties found. Paste bounty ID manually."
+                              value={selectedBounty}
+                              onChange={(e) => setSelectedBounty(e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+
                       <Button onClick={handleApply} disabled={pending || !selectedBounty.trim()} className="w-full">
                         {pending ? (
                           <><Loader2 className="size-4 animate-spin" /> Submitting...</>
                         ) : (
-                          "Apply as Judge (1 SUI stake)"
+                          "Apply as Judge (0.1 SUI stake)"
                         )}
                       </Button>
                     </div>
@@ -287,7 +415,8 @@ function JudgesPage() {
                     <div className="text-center py-8">
                       <CheckCircle2 className="size-10 text-green-500 mx-auto mb-3" />
                       <p className="font-semibold mb-1">Application submitted!</p>
-                      <p className="text-sm text-on-surface-variant">Once approved, you can start evaluating bounties.</p>
+                      <p className="text-sm text-on-surface-variant mb-3">Once approved, you can start evaluating bounties.</p>
+                      <a href="/judging" className="text-sm text-primary hover:underline">View Judging Queue →</a>
                     </div>
                   )}
 

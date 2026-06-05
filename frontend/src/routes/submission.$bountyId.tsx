@@ -5,8 +5,9 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Badge } from "@/components/ui/badge";
 import { useOnChainBounty } from "@/hooks/useOnChainBounties";
+import { WALRUS_AGGREGATORS } from "@/lib/config";
 
-const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
+const WALRUS_AGGREGATOR = WALRUS_AGGREGATORS[0];
 
 export const Route = createFileRoute("/submission/$bountyId")({
   head: () => ({
@@ -44,29 +45,28 @@ function SubmissionDetailPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const cached: CachedSubmission[] = JSON.parse(
-      localStorage.getItem("qually_submissions") || "[]"
-    );
-    const found = cached.find((s) => s.bountyId === bountyId);
-    setSubmission(found ?? null);
+    import("@/lib/submissions").then(({ getSubmissionsForBounty }) => {
+      const found = getSubmissionsForBounty(bountyId)[0] ?? null;
+      setSubmission(found as any ?? null);
 
-    if (found?.blobId) {
-      fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${encodeURIComponent(found.blobId)}`, {
-        signal: AbortSignal.timeout(10000),
-      })
-        .then((r) => r.text())
-        .then((text) => {
-          try {
-            setWalrusContent(JSON.parse(text));
-          } catch {
-            setWalrusContent({ title: found.title, description: text });
-          }
+      if (found?.blobId) {
+        fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${encodeURIComponent(found.blobId)}`, {
+          signal: AbortSignal.timeout(10000),
         })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+          .then((r) => r.text())
+          .then((text) => {
+            try {
+              setWalrusContent(JSON.parse(text));
+            } catch {
+              setWalrusContent({ title: found.title, description: text });
+            }
+          })
+          .catch(() => {})
+          .finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    }).catch(() => setLoading(false));
   }, [bountyId]);
 
   function handleCopyBlobId() {

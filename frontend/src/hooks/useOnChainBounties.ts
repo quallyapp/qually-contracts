@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { QUALLY_PACKAGE_ID } from '../lib/contracts';
+import { QUALLY_PACKAGE_ID, SUI_RPC_URL, WALRUS_AGGREGATORS } from '../lib/config';
 import type { Bounty } from '../types';
 
-const SUI_RPC = 'https://fullnode.testnet.sui.io:443';
-const WALRUS_AGGREGATOR = 'https://aggregator.walrus-testnet.walrus.space';
+const WALRUS_AGGREGATOR = WALRUS_AGGREGATORS[0];
 
 async function suiRequest(method: string, params: any[]) {
-  const resp = await fetch(SUI_RPC, {
+  const resp = await fetch(SUI_RPC_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': 't-6a199d1236e87595baf39056-f0739496094940579ae1954a',
+    },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
   const json = await resp.json();
@@ -197,11 +199,11 @@ export function useMySubmissions(address: string | null) {
     queryFn: async (): Promise<SubmissionPreview[]> => {
       if (!address) return [];
 
-      // Read from localStorage (primary source — RPC queryObjects doesn't work on testnet)
-      const cached: any[] = JSON.parse(localStorage.getItem('qually_submissions') || '[]');
-      return cached
-        .filter((s: any) => s.bountyId && s.blobId)
-        .map((s: any) => ({
+      const { getSubmissions } = await import('../lib/submissions');
+      const subs = await getSubmissions();
+      return subs
+        .filter((s) => s.bountyId && s.blobId)
+        .map((s) => ({
           id: s.id,
           bountyId: s.bountyId,
           title: s.title || 'Submission',

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PostRouteImport } from './routes/post'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as JudgingRouteImport } from './routes/judging'
 import { Route as JudgesRouteImport } from './routes/judges'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -29,6 +30,11 @@ const PostRoute = PostRouteImport.update({
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JudgingRoute = JudgingRouteImport.update({
+  id: '/judging',
+  path: '/judging',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JudgesRoute = JudgesRouteImport.update({
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/judges': typeof JudgesRoute
+  '/judging': typeof JudgingRoute
   '/leaderboard': typeof LeaderboardRoute
   '/post': typeof PostRoute
   '/bounty/$id': typeof BountyIdRouteWithChildren
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/judges': typeof JudgesRoute
+  '/judging': typeof JudgingRoute
   '/leaderboard': typeof LeaderboardRoute
   '/post': typeof PostRoute
   '/bounty/$id': typeof BountyIdRouteWithChildren
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/judges': typeof JudgesRoute
+  '/judging': typeof JudgingRoute
   '/leaderboard': typeof LeaderboardRoute
   '/post': typeof PostRoute
   '/bounty/$id': typeof BountyIdRouteWithChildren
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/judges'
+    | '/judging'
     | '/leaderboard'
     | '/post'
     | '/bounty/$id'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/judges'
+    | '/judging'
     | '/leaderboard'
     | '/post'
     | '/bounty/$id'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/judges'
+    | '/judging'
     | '/leaderboard'
     | '/post'
     | '/bounty/$id'
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ExploreRoute: typeof ExploreRoute
   JudgesRoute: typeof JudgesRoute
+  JudgingRoute: typeof JudgingRoute
   LeaderboardRoute: typeof LeaderboardRoute
   PostRoute: typeof PostRoute
   BountyIdRoute: typeof BountyIdRouteWithChildren
@@ -186,6 +199,13 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/leaderboard'
       preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/judging': {
+      id: '/judging'
+      path: '/judging'
+      fullPath: '/judging'
+      preLoaderRoute: typeof JudgingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/judges': {
@@ -272,6 +292,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ExploreRoute: ExploreRoute,
   JudgesRoute: JudgesRoute,
+  JudgingRoute: JudgingRoute,
   LeaderboardRoute: LeaderboardRoute,
   PostRoute: PostRoute,
   BountyIdRoute: BountyIdRouteWithChildren,

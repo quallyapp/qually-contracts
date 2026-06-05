@@ -1,20 +1,12 @@
+import { WALRUS_PUBLISHERS, WALRUS_AGGREGATORS } from './config';
+
 async function sha3_256(data: Uint8Array): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data as BufferSource);
   return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const PUBLISHERS = [
-  'https://publisher.walrus-testnet.walrus.space',
-  'https://walrus-testnet-publisher.staketab.org',
-];
-
-const AGGREGATORS = [
-  'https://aggregator.walrus-testnet.walrus.space',
-  'https://walrus-testnet-aggregator.staketab.org',
-];
-
-let activePublisher = PUBLISHERS[0];
-let activeAggregator = AGGREGATORS[0];
+let activePublisher = WALRUS_PUBLISHERS[0];
+let activeAggregator = WALRUS_AGGREGATORS[0];
 let publisherTested = false;
 
 async function testPublisher(url: string): Promise<boolean> {
@@ -32,10 +24,10 @@ async function testPublisher(url: string): Promise<boolean> {
 
 async function ensurePublisher(): Promise<string> {
   if (publisherTested) return activePublisher;
-  for (const url of PUBLISHERS) {
+  for (const url of WALRUS_PUBLISHERS) {
     if (await testPublisher(url)) {
       activePublisher = url;
-      activeAggregator = AGGREGATORS[PUBLISHERS.indexOf(url)] || AGGREGATORS[0];
+      activeAggregator = WALRUS_AGGREGATORS[WALRUS_PUBLISHERS.indexOf(url)] || WALRUS_AGGREGATORS[0];
       publisherTested = true;
       return activePublisher;
     }

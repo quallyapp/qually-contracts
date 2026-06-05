@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Wallet, Copy, Check, User, FileBarChart, Trophy, Target, Clock, ArrowRight, Frown } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { Wallet, Copy, Check, User, FileBarChart, Trophy, Target, Clock, ArrowRight, Frown, Pencil, Save, X, ExternalLink } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useOnChainBounties } from "@/hooks/useOnChainBounties";
@@ -11,6 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  getUserProfile,
+  saveUserProfileLocal,
+  uploadUserProfile,
+  type UserProfile,
+} from "@/lib/user-profiles";
 
 export const Route = createFileRoute("/profile/$address")({
   head: () => ({
@@ -58,6 +64,45 @@ function ProfilePage() {
   const [creating, setCreating] = useState(false);
   const [createResult, setCreateResult] = useState<{ success: boolean; error?: string } | null>(null);
 
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editSkills, setEditSkills] = useState("");
+  const [editWebsite, setEditWebsite] = useState("");
+  const [editX, setEditX] = useState("");
+  const [editGithub, setEditGithub] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setProfileLoading(true);
+      try {
+        const p = await getUserProfile(routeAddress);
+        if (!cancelled) setUserProfile(p);
+      } catch {
+        if (!cancelled) setUserProfile(null);
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [routeAddress]);
+
+  useEffect(() => {
+    if (userProfile) {
+      setEditName(userProfile.nickname);
+      setEditBio(userProfile.bio);
+      setEditSkills(userProfile.skills.join(", "));
+      setEditWebsite(userProfile.website || "");
+      setEditX(userProfile.x || "");
+      setEditGithub(userProfile.github || "");
+    }
+  }, [userProfile]);
+
   const postedBounties = useMemo(() => {
     if (!allBounties || !routeAddress) return [];
     return allBounties.filter((b) => b.posterAddress === routeAddress);
@@ -78,6 +123,13 @@ function ProfilePage() {
     [postedBounties]
   );
 
+  const submittedBounties = useMemo(() => {
+    if (!allBounties || !routeAddress) return [];
+    return allBounties.filter(
+      (b) => b.submittedAddresses?.some((a: string) => a.toLowerCase() === routeAddress.toLowerCase())
+    );
+  }, [allBounties, routeAddress]);
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(routeAddress);
     setCopied(true);
@@ -90,24 +142,59 @@ function ProfilePage() {
     setCreateResult(null);
 
     try {
-      const bioContent = JSON.stringify({ name: profileName, bio: profileBio, skills: skillsInput.split(",").map((s) => s.trim()).filter(Boolean) });
-      const uploadResult = await uploadText(bioContent);
+      const newProfile: UserProfile = {
+        address: routeAddress,
+        nickname: profileName.trim(),
+        bio: profileBio.trim(),
+        type: profileType === "hunter" && postedBounties.length > 0 ? "both" : profileType,
+        skills: skillsInput.split(",").map((s) => s.trim()).filter(Boolean),
+        website: "",
+        x: "",
+        github: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-      let result;
-      if (profileType === "poster") {
-        result = await createPosterProfile(profileName, uploadResult.blobHash);
-      } else {
-        const skills = skillsInput.split(",").map((s) => s.trim()).filter(Boolean);
-        result = await createHunterProfile(profileName, uploadResult.blobHash, skills);
-      }
+      const blobId = await uploadUserProfile(newProfile);
+      saveUserProfileLocal(routeAddress, blobId, newProfile);
+      setUserProfile(newProfile);
 
-      setCreateResult(result);
+      setCreateResult({ success: true });
     } catch (e: any) {
       setCreateResult({ success: false, error: e.message || "Profile creation failed" });
     } finally {
       setCreating(false);
     }
   };
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim() || !userProfile) return;
+    setSaving(true);
+
+    try {
+      const updated: UserProfile = {
+        ...userProfile,
+        nickname: editName.trim(),
+        bio: editBio.trim(),
+        skills: editSkills.split(",").map((s) => s.trim()).filter(Boolean),
+        website: editWebsite.trim(),
+        x: editX.trim(),
+        github: editGithub.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const blobId = await uploadUserProfile(updated);
+      saveUserProfileLocal(routeAddress, blobId, updated);
+      setUserProfile(updated);
+      setEditing(false);
+    } catch (e: any) {
+      alert("Failed to save profile: " + (e.message || "Unknown error"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const displayName = userProfile?.nickname || truncAddr(routeAddress);
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,7 +206,7 @@ function ProfilePage() {
           <div>
             <h1 className="text-display">Profile</h1>
             <p className="mt-2 text-on-surface-variant">
-              {isOwnProfile ? "Manage your on-chain identity." : "View this user's activity on Qually."}
+              {isOwnProfile ? "Manage your on-chain identity." : `View ${displayName}'s activity on Qually.`}
             </p>
           </div>
         </div>
@@ -131,13 +218,26 @@ function ProfilePage() {
             <div className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-start gap-4">
                 <div className="size-16 rounded-full bg-surface-container grid place-items-center text-primary flex-shrink-0">
-                  <User className="size-8" />
+                  {userProfile?.avatarUrl ? (
+                    <img src={userProfile.avatarUrl} alt={displayName} className="size-16 rounded-full object-cover" />
+                  ) : (
+                    <User className="size-8" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
-                    <h2 className="text-headline-md font-semibold truncate">{truncAddr(routeAddress)}</h2>
+                    {editing ? (
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="text-xl font-semibold h-auto py-0"
+                        placeholder="Your nickname"
+                      />
+                    ) : (
+                      <h2 className="text-headline-md font-semibold truncate">{displayName}</h2>
+                    )}
                     <span className="text-label-mono px-2 py-1 rounded-sm bg-surface-container text-on-surface-variant border border-border">
-                      User
+                      {userProfile?.type === "poster" ? "Poster" : userProfile?.type === "hunter" ? "Hunter" : userProfile?.type === "both" ? "Poster & Hunter" : "User"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
@@ -146,14 +246,81 @@ function ProfilePage() {
                       {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                     </button>
                   </div>
+                  {userProfile?.bio && !editing && (
+                    <p className="text-sm text-on-surface-variant mt-3 leading-relaxed">{userProfile.bio}</p>
+                  )}
+                  {editing && (
+                    <Textarea
+                      value={editBio}
+                      onChange={(e) => setEditBio(e.target.value)}
+                      className="mt-3"
+                      placeholder="Tell others about yourself..."
+                      rows={3}
+                    />
+                  )}
+                  {editing && (
+                    <div className="mt-3 space-y-2">
+                      <div>
+                        <label className="text-label-mono text-on-surface-variant text-xs">SKILLS</label>
+                        <Input value={editSkills} onChange={(e) => setEditSkills(e.target.value)} placeholder="Rust, TypeScript, Solana" className="mt-1" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-label-mono text-on-surface-variant text-xs">WEBSITE</label>
+                          <Input value={editWebsite} onChange={(e) => setEditWebsite(e.target.value)} placeholder="https://..." className="mt-1" />
+                        </div>
+                        <div>
+                          <label className="text-label-mono text-on-surface-variant text-xs">X / TWITTER</label>
+                          <Input value={editX} onChange={(e) => setEditX(e.target.value)} placeholder="@username" className="mt-1" />
+                        </div>
+                        <div>
+                          <label className="text-label-mono text-on-surface-variant text-xs">GITHUB</label>
+                          <Input value={editGithub} onChange={(e) => setEditGithub(e.target.value)} placeholder="@username" className="mt-1" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveEdit} disabled={saving || !editName.trim()}>
+                          {saving ? "Saving..." : "Save Profile"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {!editing && isOwnProfile && userProfile && (
+                    <Button size="sm" variant="outline" className="mt-3" onClick={() => setEditing(true)}>
+                      <Pencil className="size-3 mr-1" /> Edit Profile
+                    </Button>
+                  )}
                 </div>
               </div>
+              {/* Social links */}
+              {userProfile && !editing && (userProfile.website || userProfile.x || userProfile.github) && (
+                <div className="flex gap-3 mt-4 pt-4 border-t border-border">
+                  {userProfile.x && (
+                    <a href={`https://x.com/${userProfile.x.replace("@", "")}`} target="_blank" rel="noopener" className="text-label-mono text-on-surface-variant hover:text-primary transition-colors inline-flex items-center gap-1">
+                      <ExternalLink className="size-3" /> {userProfile.x}
+                    </a>
+                  )}
+                  {userProfile.github && (
+                    <a href={`https://github.com/${userProfile.github.replace("@", "")}`} target="_blank" rel="noopener" className="text-label-mono text-on-surface-variant hover:text-primary transition-colors inline-flex items-center gap-1">
+                      <ExternalLink className="size-3" /> {userProfile.github}
+                    </a>
+                  )}
+                  {userProfile.website && (
+                    <a href={userProfile.website} target="_blank" rel="noopener" className="text-label-mono text-on-surface-variant hover:text-primary transition-colors inline-flex items-center gap-1">
+                      <ExternalLink className="size-3" /> {userProfile.website.replace(/^https?:\/\//, "")}
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Stats Grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Stat icon={<FileBarChart className="size-5" />} label="BOUNTIES POSTED" value={String(postedBounties.length).padStart(2, "0")} trend={`${activeBounties.length} active`} />
-              <Stat icon={<Target className="size-5" />} label="SUBMISSIONS" value="—" trend="Coming soon" />
+              <Stat icon={<FileBarChart className="size-5" />} label="BOUNTIES OPENED" value={String(postedBounties.length).padStart(2, "0")} trend={`${activeBounties.length} active`} />
+              <Stat icon={<Target className="size-5" />} label="SUBMISSIONS" value={String(submittedBounties.length).padStart(2, "0")} trend={`${closedBounties.length} closed`} />
               <Stat icon={<Trophy className="size-5" />} label="SUI EARNED" value={formatSui(totalEscrowed)} trend={`${closedBounties.length} closed`} />
               <Stat icon={<Clock className="size-5" />} label="WIN RATE" value="—" trend="Coming soon" />
             </div>
@@ -161,9 +328,8 @@ function ProfilePage() {
             {/* Tabs */}
             <Tabs defaultValue="posted">
               <TabsList className="w-full justify-start">
-                <TabsTrigger value="posted">Posted Bounties</TabsTrigger>
+                <TabsTrigger value="posted">Bounties Opened</TabsTrigger>
                 <TabsTrigger value="submissions">Submissions</TabsTrigger>
-                <TabsTrigger value="judge">Judge History</TabsTrigger>
               </TabsList>
 
               <TabsContent value="posted" className="mt-4">
@@ -204,16 +370,31 @@ function ProfilePage() {
               </TabsContent>
 
               <TabsContent value="submissions" className="mt-4">
-                <div className="rounded-lg border border-border bg-card p-8 text-center">
-                  <Frown className="size-8 mx-auto text-on-surface-variant mb-3" />
-                  <p className="text-on-surface-variant">Submissions data coming soon.</p>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="judge" className="mt-4">
-                <div className="rounded-lg border border-border bg-card p-8 text-center">
-                  <Frown className="size-8 mx-auto text-on-surface-variant mb-3" />
-                  <p className="text-on-surface-variant">Judge history coming soon.</p>
+                <div className="space-y-4">
+                  {isLoading ? (
+                    <div className="rounded-lg border border-border bg-card p-8 text-center text-on-surface-variant">Loading...</div>
+                  ) : submittedBounties.length === 0 ? (
+                    <div className="rounded-lg border border-border bg-card p-8 text-center">
+                      <Frown className="size-8 mx-auto text-on-surface-variant mb-3" />
+                      <p className="text-on-surface-variant">No submissions yet.</p>
+                    </div>
+                  ) : (
+                    submittedBounties.map((b) => (
+                      <article key={b.id} className="rounded-lg border border-border bg-card p-5">
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-label-mono px-2 py-1 rounded-sm bg-surface-container text-on-surface-variant border border-border">SUBMITTED</span>
+                            <span className="text-label-mono text-on-surface-variant">#{b.id.slice(0, 8)}</span>
+                          </div>
+                          <span className="font-mono font-bold text-primary">{formatSui(b.prizePool)}</span>
+                        </div>
+                        <h3 className="font-semibold text-lg">{b.title}</h3>
+                        <Link to="/submission/$bountyId" params={{ bountyId: b.id }} className="text-sm font-semibold h-9 px-4 rounded-md border border-border bg-surface-low hover:border-primary/40 inline-flex items-center gap-1 mt-3">
+                          View Submission <ArrowRight className="size-3" />
+                        </Link>
+                      </article>
+                    ))
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
@@ -221,10 +402,10 @@ function ProfilePage() {
 
           {/* Sidebar */}
           <aside className="space-y-5">
-            {/* Create Profile Widget (own profile only) */}
-            {isOwnProfile && (
+            {/* Create Profile Widget (own profile only, no existing profile) */}
+            {isOwnProfile && !userProfile && !profileLoading && (
               <div className="rounded-lg border border-border bg-card p-5 border-t-2 border-t-primary">
-                <h3 className="font-semibold mb-4">Create On-Chain Profile</h3>
+                <h3 className="font-semibold mb-4">Create Your Profile</h3>
 
                 <div className="space-y-4">
                   <div>
@@ -256,7 +437,7 @@ function ProfilePage() {
                   </div>
 
                   <div>
-                    <label className="text-label-mono text-on-surface-variant block mb-2">NAME</label>
+                    <label className="text-label-mono text-on-surface-variant block mb-2">NICKNAME</label>
                     <Input
                       placeholder="Your display name"
                       value={profileName}
@@ -295,45 +476,38 @@ function ProfilePage() {
 
                   {createResult && (
                     <div className={`text-sm p-3 rounded-md ${createResult.success ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
-                      {createResult.success ? "Profile created successfully!" : createResult.error}
+                      {createResult.success ? "Profile created!" : createResult.error}
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Not connected prompt for own profile */}
-            {isOwnProfile === false && connectedAddress === null && routeAddress && (
-              <div className="rounded-lg border border-border bg-card p-5 border-t-2 border-t-primary">
-                <Wallet className="size-8 mx-auto text-on-surface-variant mb-3" />
-                <h3 className="font-semibold text-center mb-2">Connect Wallet</h3>
-                <p className="text-sm text-on-surface-variant text-center">
-                  Connect your wallet to manage your profile.
-                </p>
+            {/* Skills */}
+            {userProfile && userProfile.skills.length > 0 && (
+              <div className="rounded-lg border border-border bg-card p-5">
+                <h3 className="font-semibold mb-3">Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                  {userProfile.skills.map((skill) => (
+                    <span key={skill} className="text-label-mono px-2 py-1 rounded-sm bg-surface-container text-on-surface-variant border border-border">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Reputation card */}
-            <div className="rounded-lg border border-border bg-card p-5">
-              <h3 className="font-semibold mb-4">Reputation</h3>
-              <div className="flex items-center gap-4">
-                <div className="relative size-20 rounded-full grid place-items-center" style={{ background: "conic-gradient(var(--primary) 0 0%, var(--surface-container) 0% 100%)" }}>
-                  <div className="size-16 rounded-full bg-card grid place-items-center font-mono font-bold text-lg">—</div>
-                </div>
-                <div>
-                  <p className="text-label-caps text-on-surface-variant">TIER: UNRANKED</p>
-                  <p className="text-sm text-on-surface-variant mt-1">No reputation data yet</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick stats */}
+            {/* Quick Stats */}
             <div className="rounded-lg border border-border bg-card p-5">
               <h3 className="font-semibold mb-4">Quick Stats</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Total Bounties</span>
+                  <span className="text-on-surface-variant">Bounties Opened</span>
                   <span className="font-mono font-semibold">{postedBounties.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">Submissions</span>
+                  <span className="font-mono font-semibold">{submittedBounties.length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-on-surface-variant">Active Bounties</span>
@@ -345,6 +519,17 @@ function ProfilePage() {
                 </div>
               </div>
             </div>
+
+            {/* Not connected prompt for own profile */}
+            {isOwnProfile === false && connectedAddress === null && routeAddress && (
+              <div className="rounded-lg border border-border bg-card p-5 border-t-2 border-t-primary">
+                <Wallet className="size-8 mx-auto text-on-surface-variant mb-3" />
+                <h3 className="font-semibold text-center mb-2">Connect Wallet</h3>
+                <p className="text-sm text-on-surface-variant text-center">
+                  Connect your wallet to manage your profile.
+                </p>
+              </div>
+            )}
           </aside>
         </div>
       </div>

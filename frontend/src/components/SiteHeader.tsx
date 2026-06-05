@@ -2,12 +2,14 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWallet } from "../hooks/useWallet";
+import { getNickname } from "../lib/user-profiles";
 
 const nav = [
   { to: "/explore", label: "Explore" },
   { to: "/create", label: "Create Bounty" },
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/judges", label: "Judges" },
+  { to: "/judging", label: "Judging Queue" },
 ];
 
 function truncateAddress(addr: string) {
@@ -81,13 +83,23 @@ function DashboardLink() {
 
 function WalletButton() {
   const { connected, address, connecting, connect, disconnect } = useWallet();
+  const [nickname, setNickname] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (connected && address) {
+      const name = getNickname(address);
+      setNickname(name !== truncateAddress(address) ? name : null);
+    } else {
+      setNickname(null);
+    }
+  }, [connected, address]);
 
   if (connected) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm font-mono text-on-surface-variant">
-          {truncateAddress(address!)}
-        </span>
+        <Link to="/profile/$address" params={{ address: address! }} className="text-sm font-mono text-on-surface-variant hover:text-primary transition-colors">
+          {nickname || truncateAddress(address!)}
+        </Link>
         <button
           onClick={disconnect}
           className="h-10 px-4 rounded-md border border-border text-sm font-semibold hover:bg-accent transition"

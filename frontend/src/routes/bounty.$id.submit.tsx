@@ -14,6 +14,7 @@ import { useOnChainBounty } from "../hooks/useOnChainBounties";
 import { useContract } from "../hooks/useContract";
 import { useWallet } from "../hooks/useWallet";
 import { uploadText, uploadToWalrus } from "../lib/walrus";
+import { saveSubmission } from "../lib/submissions";
 
 export const Route = createFileRoute("/bounty/$id/submit")({
   head: () => ({
@@ -196,9 +197,7 @@ function BountySubmit() {
 
       console.log("[Qually] Submit: result:", JSON.stringify(result, null, 2));
       if (result.success) {
-        // Cache submission in localStorage for dashboard display
-        const cached = JSON.parse(localStorage.getItem('qually_submissions') || '[]');
-        cached.push({
+        await saveSubmission({
           id: result.createdObjects?.[0] ?? `sub_${Date.now()}`,
           bountyId: id,
           title,
@@ -206,7 +205,6 @@ function BountySubmit() {
           blobId: descResult.blobId,
           submittedAt: new Date().toISOString(),
         });
-        localStorage.setItem('qually_submissions', JSON.stringify(cached));
 
         setSuccess(result.digest ?? "Transaction submitted");
         toast.success("Work submitted successfully!", {

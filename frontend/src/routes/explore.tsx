@@ -4,6 +4,7 @@ import { ArrowRight, Clock, Landmark, Network, FileEdit, Box } from "lucide-reac
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useOnChainBounties } from "../hooks/useOnChainBounties";
+import { getNickname } from "../lib/user-profiles";
 import type { Bounty } from "../types";
 
 export const Route = createFileRoute("/explore")({
@@ -94,9 +95,9 @@ function Explore() {
     return rawBounties.slice(0, 5).map((b, i) => {
       const timeAgo = `${i + 1} min${i > 0 ? "s" : ""} ago`;
       if (b.submissionCount > 0) {
-        return { addr: truncateAddress(b.posterAddress), action: "posted", obj: b.title, time: timeAgo };
+        return { addr: getNickname(b.posterAddress), action: "posted", obj: b.title, time: timeAgo };
       }
-      return { addr: truncateAddress(b.posterAddress), action: "created", obj: `${b.prizePool} SUI bounty`, time: timeAgo };
+      return { addr: getNickname(b.posterAddress), action: "created", obj: `${b.prizePool} SUI bounty`, time: timeAgo };
     });
   }, [rawBounties]);
 
@@ -250,7 +251,9 @@ function Explore() {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="size-9 rounded-md bg-primary/10 border border-primary/20 grid place-items-center text-primary flex-shrink-0">{typeIcons[b.type]}</div>
                     <div className="min-w-0">
-                      <p className="text-label-mono truncate">{truncateAddress(b.posterAddress)}</p>
+                      <Link to="/profile/$address" params={{ address: b.posterAddress }} className="text-label-mono truncate hover:text-primary transition-colors">
+                        {getNickname(b.posterAddress)}
+                      </Link>
                       <p className="text-xs text-on-surface-variant truncate">{b.submissionCount} submission{b.submissionCount !== 1 ? "s" : ""}</p>
                     </div>
                   </div>

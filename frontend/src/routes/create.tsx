@@ -33,7 +33,8 @@ function CreateBountyPage() {
     bountyType: "0" as "0" | "1" | "2",
     prizeSui: "",
     submissionDays: "7",
-    judgingDays: "3",
+    judgingValue: "5",
+    judgingUnit: "min" as "min" | "hr" | "day",
     category: "Development",
     maxJudges: "3",
     autoExtend: false,
@@ -56,9 +57,23 @@ function CreateBountyPage() {
       return;
     }
 
+    const judgingNum = parseInt(form.judgingValue);
+    if (!judgingNum || judgingNum <= 0) {
+      setError("Judging window must be at least 1 minute");
+      return;
+    }
+
     const now = Date.now();
     const submissionMs = parseInt(form.submissionDays) * 24 * 60 * 60 * 1000;
-    const judgingMs = parseInt(form.judgingDays) * 24 * 60 * 60 * 1000;
+    
+    let judgingMs: number;
+    if (form.judgingUnit === "min") {
+      judgingMs = judgingNum * 60 * 1000;
+    } else if (form.judgingUnit === "hr") {
+      judgingMs = judgingNum * 60 * 60 * 1000;
+    } else {
+      judgingMs = judgingNum * 24 * 60 * 60 * 1000;
+    }
 
     // Step 1: Upload brief to Walrus
     setStep("uploading");
@@ -262,15 +277,30 @@ function CreateBountyPage() {
             </div>
             <div>
               <label className="text-label-caps text-on-surface-variant block mb-2">Judging Window</label>
-              <select
-                value={form.judgingDays}
-                onChange={(e) => setForm({ ...form, judgingDays: e.target.value })}
-                className="w-full h-11 px-4 rounded-md border border-border bg-card text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
-              >
-                {[1, 3, 5, 7].map((d) => (
-                  <option key={d} value={d}>{d} days</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={form.judgingValue}
+                  onChange={(e) => setForm({ ...form, judgingValue: e.target.value })}
+                  className="flex-1 h-11 px-4 rounded-md border border-border bg-card text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                <select
+                  value={form.judgingUnit}
+                  onChange={(e) => setForm({ ...form, judgingUnit: e.target.value as "min" | "hr" | "day" })}
+                  className="h-11 px-3 rounded-md border border-border bg-card text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                >
+                  <option value="min">min</option>
+                  <option value="hr">hr</option>
+                  <option value="day">day</option>
+                </select>
+              </div>
+              <p className="text-xs text-on-surface-variant mt-1.5">
+                {parseInt(form.judgingValue) <= 0 ? "Minimum 1 minute" : 
+                  form.judgingUnit === "min" ? `${form.judgingValue} minute${parseInt(form.judgingValue) !== 1 ? "s" : ""}` :
+                  form.judgingUnit === "hr" ? `${form.judgingValue} hour${parseInt(form.judgingValue) !== 1 ? "s" : ""}` :
+                  `${form.judgingValue} day${parseInt(form.judgingValue) !== 1 ? "s" : ""}`}
+              </p>
             </div>
           </div>
 

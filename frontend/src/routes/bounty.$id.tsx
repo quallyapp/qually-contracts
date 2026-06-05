@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, createFileRoute, useParams, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Info, Cloud, Link as LinkIcon, BadgeCheck, Lock, Send, Share2, Copy, ShieldCheck } from "lucide-react";
+import { Info, Cloud, Link as LinkIcon, BadgeCheck, Lock, Send, Share2, Copy, ShieldCheck, Shield, User, ExternalLink, Loader2, Vote } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useOnChainBounty } from "../hooks/useOnChainBounties";
 import { useWallet } from "../hooks/useWallet";
 import { PosterActions } from "../components/bounty/PosterActions";
+import { JudgeActions } from "../components/bounty/JudgeActions";
+import { getApplicationsForBounty, getJudgeDetailsForApplication, type JudgeApplication } from "../lib/judge-applications";
+import type { JudgeProfileDetails } from "../lib/judge-profiles";
+import { getNickname } from "../lib/user-profiles";
 
 export const Route = createFileRoute("/bounty/$id")({
   head: () => ({
@@ -46,6 +50,10 @@ function getTimeRemaining(deadline: Date): { days: string; hours: string; minute
 function truncateAddress(addr: string): string {
   if (!addr || addr.length < 10) return addr;
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+interface ApplicationWithDetails extends JudgeApplication {
+  judgeDetails?: JudgeProfileDetails | null;
 }
 
 function SkeletonLoader() {
@@ -130,10 +138,13 @@ function BountyDetail() {
   const matchRoute = useMatchRoute();
   const isChildRoute = matchRoute({ to: "/bounty/$id/submit", fuzzy: true });
   const { data: bounty, isLoading } = useOnChainBounty(id);
-  const [activeTab, setActiveTab] = useState<"brief" | "submissions" | "timeline">("brief");
+  const [activeTab, setActiveTab] = useState<"brief" | "submissions" | "timeline" | "poster" | "judges">("brief");
   const [copied, setCopied] = useState(false);
   const { address } = useWallet();
   const [time, setTime] = useState({ days: "00", hours: "00", minutes: "00", seconds: "00" });
+
+  const [applications, setApplications] = useState<ApplicationWithDetails[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
 
   useEffect(() => {
     if (!bounty) return;
@@ -144,12 +155,39 @@ function BountyDetail() {
     return () => clearInterval(interval);
   }, [bounty?.submissionDeadline]);
 
+  useEffect(() => {
+    async function loadApps() {
+      setLoadingApps(true);
+      try {
+        const apps = getApplicationsForBounty(id);
+        const withDetails = await Promise.all(
+          apps.map(async (app) => {
+            const details = await getJudgeDetailsForApplication(app);
+            return { ...app, judgeDetails: details };
+          })
+        );
+        setApplications(withDetails);
+      } catch {}
+      setLoadingApps(false);
+    }
+    loadApps();
+  }, [id]);
+
   if (isChildRoute) {
     return <Outlet />;
   }
 
   if (isLoading) return <SkeletonLoader />;
   if (!bounty) return <NotFound />;
+
+  const isPoster = address === bounty.posterAddress;
+  const tabs = [
+    { key: "brief" as const, label: "Brief", lock: false },
+    { key: "submissions" as const, label: "Submissions", lock: true },
+    { key: "timeline" as const, label: "Timeline", lock: false },
+    ...(isPoster ? [{ key: "poster" as const, label: "Poster Actions", lock: false }] : []),
+    { key: "judges" as const, label: `Judges (${applications.length})`, lock: false },
+  ];
 
   function handleCopy() {
     navigator.clipboard.writeText(window.location.href);
@@ -219,7 +257,9 @@ function BountyDetail() {
             <div className="flex items-center gap-3 mb-4">
               <div className="size-10 rounded-md bg-primary/10 border border-primary/20 grid place-items-center text-primary"><Cloud className="size-5" /></div>
               <div>
-                <p className="font-semibold text-sm">{truncateAddress(bounty.posterAddress)}</p>
+                <Link to="/profile/$address" params={{ address: bounty.posterAddress }} className="font-semibold text-sm hover:text-primary transition-colors">
+                  {getNickname(bounty.posterAddress)}
+                </Link>
                 <p className="text-label-mono text-on-surface-variant">Verified Poster</p>
               </div>
             </div>
@@ -248,16 +288,12 @@ function BountyDetail() {
 
         {/* Center */}
         <main className="rounded-lg border border-border bg-card">
-          <div className="flex items-center border-b border-border px-6">
-            {[
-              { key: "brief" as const, label: "Brief", lock: false },
-              { key: "submissions" as const, label: "Submissions", lock: true },
-              { key: "timeline" as const, label: "Timeline", lock: false },
-            ].map((t) => (
+          <div className="flex items-center border-b border-border px-6 overflow-x-auto">
+            {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`py-4 px-5 text-sm font-semibold relative inline-flex items-center gap-2 ${activeTab === t.key ? "text-primary" : "text-on-surface-variant hover:text-foreground"}`}
+                className={`py-4 px-5 text-sm font-semibold relative inline-flex items-center gap-2 whitespace-nowrap ${activeTab === t.key ? "text-primary" : "text-on-surface-variant hover:text-foreground"}`}
               >
                 {t.label}{t.lock && <Lock className="size-3.5" />}
                 {activeTab === t.key && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
@@ -266,13 +302,13 @@ function BountyDetail() {
           </div>
 
           <div className="p-6 md:p-8 space-y-6">
+            {/* ── Brief Tab ── */}
             {activeTab === "brief" && (
               <>
                 <div className="flex items-start gap-3 rounded-md bg-primary/5 border border-primary/15 p-4 text-sm">
                   <Info className="size-4 text-primary mt-0.5 flex-shrink-0" />
                   <p className="font-mono text-primary">This document is cryptographically served from Walrus Decentralized Storage.</p>
                 </div>
-
                 <section>
                   <h2 className="text-headline-md mb-3">Project Overview</h2>
                   <p className="text-on-surface-variant leading-relaxed whitespace-pre-wrap">{bounty.description || "No description available."}</p>
@@ -280,6 +316,7 @@ function BountyDetail() {
               </>
             )}
 
+            {/* ── Submissions Tab ── */}
             {activeTab === "submissions" && (
               <div className="py-16 text-center space-y-4">
                 <Lock className="size-10 text-on-surface-variant mx-auto" />
@@ -288,10 +325,188 @@ function BountyDetail() {
               </div>
             )}
 
+            {/* ── Timeline Tab ── */}
             {activeTab === "timeline" && (
-              <div className="py-16 text-center space-y-4">
-                <h2 className="text-headline-md">Timeline coming soon</h2>
-                <p className="text-on-surface-variant max-w-md mx-auto">Detailed timeline and milestone tracking will be available here.</p>
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-headline-md mb-2">Bounty Timeline</h2>
+                  <p className="text-sm text-on-surface-variant">Key dates and deadlines for this bounty.</p>
+                </div>
+
+                <div className="relative">
+                  {/* Vertical line */}
+                  <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-border" />
+
+                  <div className="space-y-8">
+                    {/* Created */}
+                    <TimelineItem
+                      label="Bounty Created"
+                      date={bounty!.createdAt}
+                      description={`Prize pool: ${formatPrizePool(bounty!.prizePool)}`}
+                      status="done"
+                    />
+
+                    {/* Submission Window */}
+                    <TimelineItem
+                      label="Submission Window Open"
+                      date={bounty!.createdAt}
+                      description="Hunters can submit work"
+                      status="done"
+                    />
+
+                    {/* Submission Deadline */}
+                    <TimelineItem
+                      label="Submission Deadline"
+                      date={bounty!.submissionDeadline}
+                      description={bounty!.status === "open" ? `${bounty!.submissionCount} submission${bounty!.submissionCount !== 1 ? "s" : ""} received` : "Submissions sealed"}
+                      status={bounty!.submissionDeadline.getTime() <= Date.now() ? "done" : "current"}
+                    />
+
+                    {/* Judging Deadline */}
+                    <TimelineItem
+                      label="Judging Deadline"
+                      date={bounty!.judgingDeadline}
+                      description="All votes must be revealed by this time"
+                      status={bounty!.judgingDeadline.getTime() <= Date.now() ? "done" : bounty!.submissionDeadline.getTime() <= Date.now() ? "current" : "upcoming"}
+                    />
+
+                    {/* Closed */}
+                    {bounty!.status === "closed" && (
+                      <TimelineItem
+                        label="Bounty Closed"
+                        date={bounty!.judgingDeadline}
+                        description="Prize distributed to winner"
+                        status="done"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Deadline summary */}
+                <div className="rounded-lg border border-border bg-card p-5">
+                  <h3 className="font-semibold mb-3">Deadline Summary</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-on-surface-variant">Submission Deadline</p>
+                      <p className="font-mono font-semibold mt-1">{bounty!.submissionDeadline.toLocaleDateString()} {bounty!.submissionDeadline.toLocaleTimeString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-on-surface-variant">Judging Deadline</p>
+                      <p className="font-mono font-semibold mt-1">{bounty!.judgingDeadline.toLocaleDateString()} {bounty!.judgingDeadline.toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Poster Actions Tab ── */}
+            {activeTab === "poster" && isPoster && (
+              <PosterActions bounty={bounty} />
+            )}
+
+            {/* ── Judges Tab ── */}
+            {activeTab === "judges" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-headline-md mb-2">Judge Applications</h2>
+                  <p className="text-sm text-on-surface-variant">Judges who applied to evaluate this bounty. Their credentials are stored on Walrus.</p>
+                </div>
+
+                <JudgeActions bountyId={id} />
+
+                {loadingApps ? (
+                  <div className="flex items-center gap-2 text-sm text-on-surface-variant py-8 justify-center">
+                    <Loader2 className="size-4 animate-spin" /> Loading applications...
+                  </div>
+                ) : applications.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                    <Shield className="size-10 text-on-surface-variant mx-auto mb-3" />
+                    <p className="text-on-surface-variant">No judge applications yet.</p>
+                    <p className="text-xs text-on-surface-variant mt-1">Apply as a judge to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {applications.map((app) => (
+                      <div key={app.applicationId} className="rounded-lg border border-border bg-surface-low p-4 space-y-3">
+                        {/* Judge Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="size-10 rounded-md bg-primary/10 border border-primary/20 grid place-items-center text-primary font-mono font-bold text-xs">
+                              {app.judgeAddress.slice(2, 4).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm">{truncateAddress(app.judgeAddress)}</p>
+                              <p className="text-xs text-on-surface-variant">Profile: {truncateAddress(app.profileId)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-on-surface-variant">Stake: {app.stakeAmount} SUI</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                              app.state === "approved" ? "bg-green-500/10 text-green-500 border border-green-500/20" :
+                              app.state === "rejected" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                              "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                            }`}>
+                              {app.state.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Judge Credentials */}
+                        {app.judgeDetails && (
+                          <div className="rounded-md bg-card border border-border p-3 space-y-2">
+                            <p className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold">Credentials</p>
+                            <div className="flex flex-wrap gap-2">
+                              {app.judgeDetails.x && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-container text-xs border border-border">
+                                  𝕏 {app.judgeDetails.x}
+                                </span>
+                              )}
+                              {app.judgeDetails.github && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-container text-xs border border-border">
+                                  GH {app.judgeDetails.github}
+                                </span>
+                              )}
+                              {app.judgeDetails.linkedin && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-container text-xs border border-border">
+                                  LI {app.judgeDetails.linkedin}
+                                </span>
+                              )}
+                              {app.judgeDetails.instagram && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-container text-xs border border-border">
+                                  IG {app.judgeDetails.instagram}
+                                </span>
+                              )}
+                              {app.judgeDetails.portfolio && (
+                                <a href={app.judgeDetails.portfolio} target="_blank" rel="noopener noreferrer"
+                                   className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-container text-xs border border-border text-primary hover:underline">
+                                  Portfolio <ExternalLink className="size-3" />
+                                </a>
+                              )}
+                            </div>
+                            {app.judgeDetails.motivation && (
+                              <div className="mt-2">
+                                <p className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold mb-0.5">Motivation</p>
+                                <p className="text-xs text-on-surface-variant italic">"{app.judgeDetails.motivation}"</p>
+                              </div>
+                            )}
+                            {app.judgeDetails.experience && (
+                              <div className="mt-2">
+                                <p className="text-[10px] uppercase tracking-wide text-on-surface-variant font-semibold mb-0.5">Experience</p>
+                                <p className="text-xs text-on-surface-variant">{app.judgeDetails.experience}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!app.judgeDetails && (
+                          <div className="rounded-md bg-card border border-border p-3">
+                            <p className="text-xs text-on-surface-variant italic">No off-chain credentials stored.</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -339,15 +554,29 @@ function BountyDetail() {
               </button>
             </div>
           </div>
-
-          {/* Poster Actions - only shown to the bounty poster */}
-          {address === bounty.posterAddress && (
-            <PosterActions bounty={bounty} />
-          )}
         </aside>
       </div>
 
       <SiteFooter compact />
+    </div>
+  );
+}
+
+function TimelineItem({ label, date, description, status }: { label: string; date: Date; description: string; status: "done" | "current" | "upcoming" }) {
+  const color = status === "done" ? "bg-primary" : status === "current" ? "bg-yellow-500" : "bg-surface-container";
+  const textColor = status === "done" ? "text-primary" : status === "current" ? "text-yellow-500" : "text-on-surface-variant";
+  const dotRing = status === "current" ? "ring-4 ring-yellow-500/20" : "";
+
+  return (
+    <div className="relative pl-12">
+      <div className={`absolute left-3.5 size-3 rounded-full ${color} ${dotRing}`} />
+      <div>
+        <p className={`font-semibold text-sm ${textColor}`}>{label}</p>
+        <p className="text-xs text-on-surface-variant mt-0.5">{description}</p>
+        <p className="text-xs text-on-surface-variant mt-1 font-mono">
+          {date.toLocaleDateString()} {date.toLocaleTimeString()}
+        </p>
+      </div>
     </div>
   );
 }

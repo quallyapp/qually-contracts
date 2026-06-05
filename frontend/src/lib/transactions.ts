@@ -180,7 +180,7 @@ export function buildApplyAsJudgeTx(
     target: `${QUALLY_PACKAGE_ID}::judge::apply_as_judge`,
     arguments: [
       tx.object(judgeProfileId),
-      tx.object(bountyId),
+      tx.pure.id(bountyId),
       stakeCoin,
       tx.pure.vector('u8', applicationBlobId),
     ],

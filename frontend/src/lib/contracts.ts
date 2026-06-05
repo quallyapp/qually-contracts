@@ -1,5 +1,4 @@
-export const QUALLY_PACKAGE_ID = '0xc6a5bdf14674e542a3abdcf2895325e66d4eeaf3caa85563864ee72d76ae7c46';
-export const TREASURY_OBJECT_ID = '0x177ca7cb6d6063c09036076b44ff19a3671a69da6d4272a30077f16896c5969e';
+export { QUALLY_PACKAGE_ID, QUALLY_TREASURY as TREASURY_OBJECT_ID } from './config';
 
 export const BOUNTY_STATE = { OPEN: 0, REVIEW: 1, FINALIZED: 2, CLOSED: 3 } as const;
 export const BOUNTY_TYPE = { FIXED: 0, CONTEST: 1, GRANT: 2 } as const;

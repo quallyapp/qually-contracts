@@ -4,6 +4,7 @@ import { Trophy, Users, Gavel, Crown, Loader2 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { useOnChainBounties } from "../hooks/useOnChainBounties";
+import { getNickname } from "../lib/user-profiles";
 import type { Bounty } from "../types";
 
 export const Route = createFileRoute("/leaderboard")({
@@ -197,7 +198,7 @@ function LeaderboardPage() {
                         {rankMedal(rank)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-mono text-sm font-semibold truncate">{truncateAddress(entry.address)}</p>
+                        <p className="font-mono text-sm font-semibold truncate">{getNickname(entry.address)}</p>
                         <p className="text-xs text-on-surface-variant mt-0.5">{entry.statLabel}</p>
                       </div>
                       {entry.extra && (

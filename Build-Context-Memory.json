@@ -1842,6 +1842,103 @@
         "Deploy to Mainnet with deploy-to-mainnet skill"
       ],
       "notes": "Session 026 complete. Full create bounty + submit work flow working end-to-end on testnet. Key dapp-kit insight: signTransaction expects raw Transaction object (not built bytes), dapp-kit calls .toJSON() internally which triggers build with gas coin selection. signAndExecute hangs on RPC execution. Dashboard shows submission previews from localStorage cache. New submission detail page at /submission/$bountyId shows full Walrus content."
+    },
+    {
+      "session_id": "session_027",
+      "timestamp": "2026-06-05T18:00:00Z",
+      "ai_agent": "opencode/mimo-v2.5-free",
+      "context": "Phase 9 Judge Actions bug fixes",
+      "summary": "Fixed 3 bugs in JudgeActions.tsx: (1) Stake amount unit mismatch — applyAsJudge received raw SUI value but buildApplyAsJudgeTx expects MIST (multiply by 1e9), (2) Commit vote hash used bountyId instead of submissionId — contract's reveal_vote verifies sha3_256(submission_id ++ score ++ nonce), so commit hash must use submission ID, not bounty ID, (3) Missing submission ID input field in commit vote dialog — added Submission ID field so judge specifies which submission they're voting on. Also fixed judges.tsx: applyAsJudge was hardcoded to 1 MIST (way below T0 minimum of 100M MIST / 0.1 SUI).",
+      "files_changed": [
+        "frontend/src/components/bounty/JudgeActions.tsx",
+        "frontend/src/routes/judges.tsx"
+      ],
+      "decisions": [
+        "Stake input minimum changed from 1 to 0.1 SUI to match T0 minimum",
+        "Commit vote now requires submission ID input — judge must know which submission they're evaluating before committing",
+        "Save-for-reveal section now shows submission ID alongside score and nonce"
+      ],
+      "known_issues": [
+        "Walrus testnet domain walrus.space expired — need mainnet publisher or alternative storage",
+        "Corporate firewall blocks Linode IPs — Walrus publishers unreachable from corporate network",
+        "sui client CLI times out to testnet (reqwest issue) — use axios for all RPC calls",
+        "sui_queryObjects with StructType filter returns 0 on testnet RPC — cannot query Submission objects on-chain",
+        "signAndExecute from dapp-kit hangs after wallet signs — must use signTransaction + executeTransactionBlock separately",
+        "commit_vote contract doesn't verify sender is approved judge — anyone can commit (by design, finalize logic should filter)"
+      ],
+      "next_steps": [
+        "Phase 10-13: Test leaderboard, dashboard edge cases, profile, edge cases",
+        "Fix bounty discovery without localStorage — needs contract events (event::emit)",
+        "Deploy to Mainnet with deploy-to-mainnet skill"
+      ],
+      "notes": "Session 027. Fixed critical judge flow bugs AND verified with full e2e test (all 8 steps pass). (1) Stake amount: frontend shows SUI, contract expects MIST — multiply by 1e9. (2) Commit hash must use submission ID (not bounty ID) because reveal_vote verifies sha3_256(bcs(submission_id) ++ bcs(score) ++ nonce). (3) Commit dialog now requires submission ID input. (4) buildApplyAsJudgeTx used tx.object(bountyId) for bounty_id: ID param — must use tx.pure.id(bountyId) since ID is a pure address type, not an object reference. Key rule: for contract params of type ID (address), use tx.pure.id(), not tx.object(). For &T / &mut T params, use tx.object()."
+    },
+    {
+      "session_id": "session_028",
+      "timestamp": "2026-06-05T19:00:00Z",
+      "ai_agent": "opencode/mimo-v2.5-free",
+      "context": "Phase 9 Judge frontend: social links, Walrus storage, bounty dropdown, approve/reject",
+      "summary": "Added full judge profile management and bounty poster approval flow to frontend. (1) Created lib/judge-profiles.ts — stores judge details (X, GitHub, LinkedIn, Instagram, portfolio, motivation, experience) in Walrus via uploadJson, caches blob ID + details in localStorage keyed by wallet address. (2) Created lib/judge-applications.ts — stores judge applications in localStorage keyed by bounty ID, with state tracking (pending/approved/rejected). (3) Rewrote /judges page — social links form before minting, Walrus upload during mint, bounty dropdown (fetches open bounties from useOnChainBounties), fallback to manual input if no bounties. (4) Updated JudgeActions component — shows judge profile details when applying, stores application to localStorage on success. (5) Updated PosterActions component — 'Judge Applications' section showing pending applications with judge details (X, GitHub, LinkedIn, portfolio links, motivation), Approve/Reject buttons that call contract + update localStorage state. (6) Added JudgeActions to bounty detail page right column.",
+      "files_changed": [
+        "frontend/src/lib/judge-profiles.ts (NEW)",
+        "frontend/src/lib/judge-applications.ts (NEW)",
+        "frontend/src/routes/judges.tsx",
+        "frontend/src/components/bounty/JudgeActions.tsx",
+        "frontend/src/components/bounty/PosterActions.tsx",
+        "frontend/src/routes/bounty.$id.tsx"
+      ],
+      "decisions": [
+        "Judge profile details stored in Walrus (decentralized) + localStorage (fast local access)",
+        "Bounty dropdown auto-fetches open bounties, falls back to manual input if none found",
+        "Judge applications cached in localStorage since sui_queryObjects returns 0 on testnet",
+        "Social links optional — not mandatory for minting",
+        "Approve/Reject calls contract approve_judge + updates localStorage state"
+      ],
+      "known_issues": [
+        "sui_queryObjects with StructType filter returns 0 on testnet RPC",
+        "signAndExecute from dapp-kit hangs after wallet signs",
+        "commit_vote doesn't verify sender is approved judge — anyone can commit",
+        "Judge reputation doesn't auto-update after reveal — only via finalize payout"
+      ],
+      "next_steps": [
+        "Test full judge flow via browser: mint profile → apply → approve → commit → reveal",
+        "Phase 10-13: Test leaderboard, dashboard edge cases, profile, edge cases",
+        "Fix bounty discovery without localStorage — needs contract events (event::emit)",
+        "Deploy to Mainnet with deploy-to-mainnet skill"
+      ],
+      "notes": "Session 028. Judge frontend fully built. Social links form collects X/GitHub/LinkedIn/Instagram/portfolio (all optional). Details uploaded to Walrus as JSON, blob ID cached in localStorage. PosterActions shows judge applications with Approve/Reject buttons. JudgeApplications component fetches and displays judge details from Walrus. Bounty dropdown on /judges fetches open bounties from chain."
+    },
+    {
+      "session_id": "session_029",
+      "timestamp": "2026-06-05T20:00:00Z",
+      "ai_agent": "opencode/mimo-v2.5-free",
+      "context": "Phase 9 SSR fixes, Judging Queue page, per-address localStorage",
+      "summary": "Fixed SSR localStorage errors and built Judging Queue page. (1) Fixed SSR: all localStorage access moved to useEffect — useState initializers cannot access localStorage during server rendering. (2) Fixed per-address localStorage: key changed from global qually_judge_profile_id to qually_judge_profile_id_{address} — different wallets no longer share profile state. (3) Created /judging route (Judging Queue) — shows bounties judge is approved for, with status badges (JUDGING OPEN, WAITING FOR DEADLINE, JUDGING ENDED), time remaining, submission count, and Judge Now button during judging period. (4) Added Judging Queue to SiteHeader nav. (5) Added Judging Queue links in JudgeActions and judges page success message. (6) Explained commit-reveal voting: commit hides vote, reveal proves it — prevents judges copying each other.",
+      "files_changed": [
+        "frontend/src/routes/judges.tsx",
+        "frontend/src/components/bounty/JudgeActions.tsx",
+        "frontend/src/components/bounty/PosterActions.tsx",
+        "frontend/src/routes/judging.tsx (NEW)",
+        "frontend/src/components/SiteHeader.tsx"
+      ],
+      "decisions": [
+        "localStorage key per-address: qually_judge_profile_id_{address}",
+        "All localStorage access via useEffect, not useState initializers",
+        "Judging Queue shows status based on submissionDeadline and judgingDeadline",
+        "Judge Now button only enabled during judging period (between deadlines)"
+      ],
+      "known_issues": [
+        "Project dropdown for contest bounties not yet implemented",
+        "sui_queryObjects with StructType filter returns 0 on testnet RPC",
+        "commit_vote doesn't verify sender is approved judge"
+      ],
+      "next_steps": [
+        "Build: Project dropdown for contest bounties with multiple submissions",
+        "Test full browser flow: mint → apply → approve → judging queue → commit → reveal",
+        "Phase 10-13: Test leaderboard, dashboard, profile, edge cases",
+        "Deploy to Mainnet"
+      ],
+      "notes": "Session 029. SSR localStorage fixed (useEffect pattern). Per-address localStorage keys prevent wallet conflicts. Judging Queue page created at /judging — shows approved bounties with judging period status. Nav updated with Judging Queue link."
     }
   ]
 }

@@ -5,6 +5,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { WalletProvider, SuiClientProvider, useCurrentAccount, useConnectWallet, useDisconnectWallet, useWallets, useSuiClient, useSignTransaction, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Toaster } from "@/components/ui/sonner";
 import { WalletContext, type WalletState } from "@/hooks/useWallet";
+import { SUI_RPC_URL } from "@/lib/config";
 
 interface DappKitState {
   account: ReturnType<typeof useCurrentAccount>;
@@ -31,7 +32,7 @@ export function useDappKit(): DappKitState {
 }
 
 const networks = {
-  testnet: { url: "https://fullnode.testnet.sui.io:443", network: "testnet" as const },
+  testnet: { url: SUI_RPC_URL, network: "testnet" as const },
 };
 
 function DappKitBridge({ children }: { children: ReactNode }) {
