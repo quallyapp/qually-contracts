@@ -33,6 +33,12 @@ module qually::bounty {
         category_tags: vector<String>,
     }
 
+    /// On-chain registry of all bounty IDs (shared object)
+    public struct BountyRegistry has key, store {
+        id: UID,
+        bounty_ids: vector<ID>,
+    }
+
     /// Bounty types
     #[allow(unused_const)]
     const TYPE_FIXED: u8 = 0;
@@ -46,6 +52,39 @@ module qually::bounty {
     const STATE_REVIEW: u8 = 1;
     const STATE_FINALIZED: u8 = 2;
     const STATE_CLOSED: u8 = 3;
+
+    /// Create the BountyRegistry on package publish
+    fun init(ctx: &mut TxContext) {
+        let registry = BountyRegistry {
+            id: object::new(ctx),
+            bounty_ids: vector[],
+        };
+        transfer::share_object(registry);
+    }
+
+    /// Get all bounty IDs from the registry
+    public fun get_all_bounty_ids(registry: &BountyRegistry): vector<ID> {
+        registry.bounty_ids
+    }
+
+    /// Get the number of bounties in the registry
+    public fun registry_length(registry: &BountyRegistry): u64 {
+        vector::length(&registry.bounty_ids)
+    }
+
+    #[test_only]
+    public fun create_registry_for_testing(ctx: &mut TxContext): BountyRegistry {
+        BountyRegistry {
+            id: object::new(ctx),
+            bounty_ids: vector[],
+        }
+    }
+
+    #[test_only]
+    public fun destroy_registry_for_testing(registry: BountyRegistry) {
+        let BountyRegistry { id, bounty_ids: _ } = registry;
+        object::delete(id);
+    }
 
     /// Core Bounty object
     public struct Bounty has key, store {
@@ -76,6 +115,7 @@ module qually::bounty {
 
     /// Create a new Bounty
     public fun create_bounty(
+        registry: &mut BountyRegistry,
         payment: Coin<SUI>,
         bounty_type: u8,
         brief_blob_id: vector<u8>,
@@ -150,6 +190,9 @@ module qually::bounty {
             judging_deadline,
             category_tags,
         });
+
+        // Register bounty ID in the on-chain registry
+        vector::push_back(&mut registry.bounty_ids, bounty_id);
     }
 
     /// Poster approves a judge for this bounty

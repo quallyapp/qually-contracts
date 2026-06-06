@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { QUALLY_PACKAGE_ID, TREASURY_OBJECT_ID, SUI_CLOCK } from './contracts';
+import { QUALLY_PACKAGE_ID, TREASURY_OBJECT_ID, SUI_CLOCK, QUALLY_BOUNTY_REGISTRY } from './contracts';
 import type { CreateBountyParams } from './types';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -12,6 +12,7 @@ export function buildCreateBountyTx(params: CreateBountyParams): Transaction {
   tx.moveCall({
     target: `${QUALLY_PACKAGE_ID}::bounty::create_bounty`,
     arguments: [
+      tx.object(QUALLY_BOUNTY_REGISTRY),
       coin,
       tx.pure.u8(params.bounty_type),
       tx.pure.vector('u8', params.brief_blob_id),

@@ -164,6 +164,7 @@ module qually::qually_tests {
     #[test]
     fun test_bounty_creation() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
@@ -171,6 +172,7 @@ module qually::qually_tests {
             vector::push_back(&mut tags, string::utf8(b"Infrastructure"));
 
             bounty::create_bounty(
+                &mut registry,
                 payment,
                 0,
                 b"brief_blob_id",
@@ -197,6 +199,7 @@ module qually::qually_tests {
             ts::return_shared(bounty);
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -204,10 +207,12 @@ module qually::qually_tests {
     #[expected_failure(abort_code = bounty::E_INVALID_WEIGHT)]
     fun test_bounty_invalid_weight_too_low() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000,
                 20,
                 3, vector[], false, false, vector[],
@@ -215,6 +220,7 @@ module qually::qually_tests {
             );
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -222,10 +228,12 @@ module qually::qually_tests {
     #[expected_failure(abort_code = bounty::E_INVALID_WEIGHT)]
     fun test_bounty_invalid_weight_too_high() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000,
                 80,
                 3, vector[], false, false, vector[],
@@ -233,17 +241,20 @@ module qually::qually_tests {
             );
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
     #[test]
     fun test_bounty_approve_judge() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -268,18 +279,21 @@ module qually::qually_tests {
             ts::return_shared(bounty);
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
     #[test]
     fun test_bounty_veto() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -317,6 +331,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -324,12 +339,14 @@ module qually::qually_tests {
     #[expected_failure(abort_code = bounty::E_VETO_WINDOW_CLOSED)]
     fun test_bounty_veto_after_48h_fails() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -364,6 +381,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -371,12 +389,14 @@ module qually::qually_tests {
     #[expected_failure(abort_code = bounty::E_INVALID_STATE)]
     fun test_bounty_veto_twice_fails() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create, review, finalize
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -424,6 +444,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -432,6 +453,7 @@ module qually::qually_tests {
     #[test]
     fun test_submission() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 500);
 
@@ -439,6 +461,7 @@ module qually::qually_tests {
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment,
                 0,
                 b"brief_blob_id",
@@ -479,6 +502,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -547,11 +571,13 @@ module qually::qually_tests {
     #[test]
     fun test_bounty_lifecycle() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -584,6 +610,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -592,10 +619,12 @@ module qually::qually_tests {
     #[test]
     fun test_refund_empty_bounty() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -617,18 +646,21 @@ module qually::qually_tests {
             ts::return_to_address(ADDR1, coin);
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
     #[test]
     fun test_refund_expired_bounty() {
         let mut scenario = ts::begin(ADDR2); // ADDR2 calls (anyone can)
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty with deadline at 1000 (epoch_timestamp_ms() is 0 in tests)
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -648,6 +680,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -655,12 +688,14 @@ module qually::qually_tests {
     #[expected_failure(abort_code = bounty::E_DEADLINE_NOT_REACHED)]
     fun test_refund_expired_bounty_before_deadline() {
         let mut scenario = ts::begin(ADDR2);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty with deadline at 1000
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"b", b"h", 1000, 2000, 50, 3, vector[], false, false, vector[],
                 ts::ctx(&mut scenario)
             );
@@ -675,6 +710,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -754,12 +790,14 @@ module qually::qually_tests {
     #[test]
     fun test_dispute_evidence_and_resolve() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -815,6 +853,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -951,6 +990,7 @@ module qually::qually_tests {
     #[test]
     fun test_gated_bounty_allowed_submitter() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 500);
 
@@ -958,6 +998,7 @@ module qually::qually_tests {
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -1003,6 +1044,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -1010,6 +1052,7 @@ module qually::qually_tests {
     #[expected_failure(abort_code = submission::E_NOT_ALLOWED)]
     fun test_gated_bounty_rejects_unallowed() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 500);
 
@@ -1017,6 +1060,7 @@ module qually::qually_tests {
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -1041,6 +1085,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -1048,6 +1093,7 @@ module qually::qually_tests {
     #[expected_failure(abort_code = submission::E_ALREADY_SUBMITTED)]
     fun test_duplicate_submission_rejected() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 500);
 
@@ -1055,6 +1101,7 @@ module qually::qually_tests {
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -1081,16 +1128,19 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
     #[test]
     fun test_remove_allowed_submitter() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -1115,16 +1165,19 @@ module qually::qually_tests {
             ts::return_shared(bounty);
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
     #[test]
     fun test_disable_gating_allows_everyone() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -1143,6 +1196,7 @@ module qually::qually_tests {
             ts::return_shared(bounty);
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -1151,11 +1205,13 @@ module qually::qually_tests {
     #[test]
     fun test_boost_prize_pool() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty with 1000 SUI
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -1171,6 +1227,7 @@ module qually::qually_tests {
             ts::return_shared(bounty);
         };
 
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -1178,11 +1235,13 @@ module qually::qually_tests {
     #[expected_failure(abort_code = bounty::E_INVALID_STATE)]
     fun test_boost_prize_pool_in_review_fails() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 1000, 2000, 50, 3,
                 vector[], false, false, vector[], ts::ctx(&mut scenario)
             );
@@ -1207,6 +1266,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -1215,12 +1275,14 @@ module qually::qually_tests {
     #[test]
     fun test_auto_extend() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty with auto_extend=true, deadline at 2000
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, true, vector[], ts::ctx(&mut scenario)
             );
@@ -1237,6 +1299,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 
@@ -1244,12 +1307,14 @@ module qually::qually_tests {
     #[expected_failure(abort_code = bounty::E_MIN_SUBMISSIONS_NOT_MET)]
     fun test_auto_extend_fails_with_2_submissions() {
         let mut scenario = ts::begin(ADDR1);
+        let mut registry = qually::bounty::create_registry_for_testing(ts::ctx(&mut scenario));
         let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // Create bounty with auto_extend=true
         {
             let payment = coin::mint_for_testing<SUI>(1000, ts::ctx(&mut scenario));
             bounty::create_bounty(
+                &mut registry,
                 payment, 0, b"brief", b"hash", 2000, 3000, 50, 3,
                 vector[], false, true, vector[], ts::ctx(&mut scenario)
             );
@@ -1284,6 +1349,7 @@ module qually::qually_tests {
         };
 
         clock::destroy_for_testing(clock);
+        qually::bounty::destroy_registry_for_testing(registry);
         ts::end(scenario);
     }
 

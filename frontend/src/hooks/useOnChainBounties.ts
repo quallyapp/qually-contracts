@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { QUALLY_PACKAGE_ID, SUI_RPC_URL, WALRUS_AGGREGATORS } from '../lib/config';
+import { QUALLY_PACKAGE_ID, QUALLY_BOUNTY_REGISTRY, SUI_RPC_URL, WALRUS_AGGREGATORS } from '../lib/config';
 import type { Bounty } from '../types';
 
 const WALRUS_AGGREGATOR = WALRUS_AGGREGATORS[0];
@@ -108,6 +108,23 @@ export function useOnChainBounties() {
 
         // 0. Always include hardcoded known bounty IDs
         for (const id of KNOWN_BOUNTY_IDS) allIds.add(id);
+
+        // 0.5. Read bounty IDs from on-chain BountyRegistry (most reliable)
+        try {
+          const registryObj = await suiRequest('sui_getObject', [
+            QUALLY_BOUNTY_REGISTRY,
+            { showContent: true },
+          ]);
+          const bountyIds = registryObj?.data?.content?.fields?.bounty_ids;
+          if (Array.isArray(bountyIds)) {
+            for (const id of bountyIds) {
+              if (typeof id === 'string') allIds.add(id);
+            }
+          }
+          console.log(`[Qually] On-chain BountyRegistry: ${bountyIds?.length ?? 0} bounty IDs`);
+        } catch (e) {
+          console.warn('[Qually] Failed to read on-chain BountyRegistry:', e);
+        }
 
         // 1. Load from Walrus bounty registry (persistent across browser clears)
         try {

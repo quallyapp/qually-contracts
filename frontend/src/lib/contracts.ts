@@ -1,4 +1,4 @@
-export { QUALLY_PACKAGE_ID, QUALLY_TREASURY as TREASURY_OBJECT_ID } from './config';
+export { QUALLY_PACKAGE_ID, QUALLY_TREASURY as TREASURY_OBJECT_ID, QUALLY_BOUNTY_REGISTRY } from './config';
 
 export const BOUNTY_STATE = { OPEN: 0, REVIEW: 1, FINALIZED: 2, CLOSED: 3 } as const;
 export const BOUNTY_TYPE = { FIXED: 0, CONTEST: 1, GRANT: 2 } as const;

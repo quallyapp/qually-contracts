@@ -13,7 +13,8 @@ const { TransactionBlock } = require('@mysten/sui.js/transactions');
 const axios = require('axios');
 const crypto = require('crypto');
 
-const PACKAGE_ID = process.env.SUI_PACKAGE_ID || '0xf6e68c034db7f460f6738a763fb5c4191151e1ab789428783781ca27caffa446';
+const PACKAGE_ID = process.env.SUI_PACKAGE_ID || '0x9808cf645c5445c959c256853053fe71f8f4b544ab78821ada942363c0efe824';
+const BOUNTY_REGISTRY = '0x37bda8cc5de93c8510e8d1b68c33e756cee5d7e1e29b12ca58bd87805d918c16';
 const TATUM_RPC = 'https://sui-testnet.gateway.tatum.io';
 const TATUM_KEY = process.env.TATUM_API_KEY;
 
@@ -131,6 +132,7 @@ async function run() {
   txBounty.moveCall({
     target: `${PACKAGE_ID}::bounty::create_bounty`,
     arguments: [
+      txBounty.object(BOUNTY_REGISTRY),
       coin,
       txBounty.pure(0), // bounty_type: FIXED
       txBounty.pure(Array.from(new TextEncoder().encode('judge-test-brief'))),

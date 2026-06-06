@@ -15,8 +15,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const PACKAGE_ID  = process.env.SUI_PACKAGE_ID  || '0xf6e68c034db7f460f6738a763fb5c4191151e1ab789428783781ca27caffa446';
-const TREASURY_ID = process.env.SUI_TREASURY_ID  || '0xc34f2126f18913ef87ea402f35168e66f831777f5c7ab483a37e2d6e86145339';
+const PACKAGE_ID  = process.env.SUI_PACKAGE_ID  || '0x9808cf645c5445c959c256853053fe71f8f4b544ab78821ada942363c0efe824';
+const TREASURY_ID = process.env.SUI_TREASURY_ID  || '0xf772cf90994269bd946eac28537670b94735cd160a8497e9c02dab592491b502';
+const BOUNTY_REGISTRY = '0x37bda8cc5de93c8510e8d1b68c33e756cee5d7e1e29b12ca58bd87805d918c16';
 const WALRUS_EPOCH = parseInt(process.env.WALRUS_EPOCH || '1');
 
 function sha3_256(data) {
@@ -86,6 +87,7 @@ async function run() {
   tx.moveCall({
     target: `${PACKAGE_ID}::bounty::create_bounty`,
     arguments: [
+      tx.object(BOUNTY_REGISTRY),
       coin,
       tx.pure.u8(0),
       tx.pure.string(blobId),
